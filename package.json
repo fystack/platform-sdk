@@ -1,0 +1,25 @@
+{
+  "name": "wallet-sdk",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/index.js",
+  "types": "dist/types/index.d.ts",
+  "scripts": {
+    "test": "npx vitest",
+    "build": "bunchee",
+    "prepub": "npm run build",
+    "pub": "npm version patch && npm publish --access public"
+  },
+  "author": "anhthii",
+  "license": "ISC",
+  "devDependencies": {
+    "bunchee": "^4.4.3",
+    "vitest": "^1.2.2"
+  },
+  "dependencies": {
+    "cross-fetch": "^4.0.0",
+    "ethers": "^6.10.0",
+    "js-crypto-hmac": "^1.0.7",
+    "js-encoding-utils": "^0.7.3"
+  }
+}
