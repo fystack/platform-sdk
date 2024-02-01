@@ -3,14 +3,14 @@ import { computeHMAC } from '../src/utils'
 
 describe('Utilities', () => {
   test('test compute hmac', async () => {
-    const secret = '9c9f30c32a0634ba615b27614c473d159df7a6920ae22b8660a86c3841776234'
+    const secret = 'c3c6aa8121b84d3aae4a4558956ee171'
     const digest = await computeHMAC(secret, {
       method: 'GET',
-      path: '/api/v1/web3/transaction',
-      timestamp: 1629780000,
-      body: 'test'
+      path: '/api/v1/web3/wallet-detail',
+      timestamp: '1706783229',
+      body: ''
     })
 
-    expect(digest).toBe('480d0925c079c7fa012aa9b22252f62aa643a75b0caeb83c3c828339b78f1466')
+    expect(digest).toBe('f8dea93ca5272d175244c0c2b853f1fd8d4d01f4ea99abf6d2e62dde853fd9a6')
   })
 })

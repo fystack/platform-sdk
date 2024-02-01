@@ -2,44 +2,52 @@ import {
   AbstractSigner,
   TypedDataDomain,
   TypedDataField,
-  Provider,
-  defineProperties,
-  Wallet,
   resolveProperties,
   resolveAddress,
   assertArgument,
   getAddress,
   Transaction,
   TransactionLike,
+  assert,
+  Provider,
   TransactionResponse,
   TransactionResponseParams,
-  assert,
   Signature
 } from 'ethers'
 import { TransactionRequest } from 'ethers/src.ts/providers'
-import { computeHMAC } from './utils'
-import api from './api'
-import config from './config'
-
-interface APICredentials {
-  APIKey: string
-  APISecret: string
-}
+import { APIService, WalletDetail } from './api'
+import { APICredentials } from './types'
 
 export class ApexSigner extends AbstractSigner {
-  readonly address!: string
-  readonly credentials: APICredentials
+  private address!: string
+  private APICredentials!: APICredentials
+  private APIService: APIService
+  private walletDetail: WalletDetail
 
   constructor(credentials: APICredentials, provider?: null | Provider) {
     super(provider)
+
+    this.APICredentials = credentials
+    this.APIService = new APIService(credentials)
   }
 
   async getAddress(): Promise<string> {
-    const data = await api.get(config.API.endpoints.getWalletInfo(this.credentials.APIKey))
+    if (this.address) {
+      return this.address
+    }
+
+    const detail: WalletDetail = await this.APIService.getWalletDetail()
+    this.walletDetail = detail
+    if (detail?.Address) {
+      // cache the address
+      this.address = detail.Address
+    }
+
+    return this.address
   }
 
-  connect(provider: null | Provider): AbstractSigner {
-    return new ApexSigner(this.credentials, provider)
+  connect(provider: null | Provider): ApexSigner {
+    return new ApexSigner(this.APICredentials, provider)
   }
 
   // Copied and editted from ethers.js -> Wallet -> BaseWallet
@@ -67,13 +75,9 @@ export class ApexSigner extends AbstractSigner {
       delete tx.from
     }
 
-    const fromAddress = await this.getAddress()
-    console.info('Address', fromAddress)
+    const fromAddress = this.address
     // Build the transaction
     const btx = Transaction.from(<TransactionLike<string>>tx)
-
-    console.info('from', from)
-
     const data = {
       maxFeePerGas: btx.maxFeePerGas,
       maxPriorityFeePerGas: btx.maxPriorityFeePerGas,
@@ -86,44 +90,97 @@ export class ApexSigner extends AbstractSigner {
       chainId: btx.chainId,
       accessList: btx.accessList
     }
-
-    console.info('Data', data)
-
-    const currentTimestampInSeconds = Math.floor(Date.now() / 1000)
-    const hmac = await computeHMAC(
-      `method=POST&path=/api/v1/web3/transaction/7c4ce182-362c-47b1-adfc-d502864893a4/signRaw&timestamp=${currentTimestampInSeconds}&body=${JSON.stringify(
-        data
-      )}`
-    )
-
-    const signature = btoa(hmac)
-
-    console.info('signature', signature)
-
-    const resp = await axios.post(
-      'http://localhost:8150/api/v1/web3/transaction/7c4ce182-362c-47b1-adfc-d502864893a4/signRaw',
-      data,
-      {
-        headers: {
-          'ACCESS-API-KEY': '77bd332b-548a-4102-8c88-9db86222a541',
-          'ACCESS-TIMESTAMP': currentTimestampInSeconds,
-          'ACCESS-SIGN': signature
-        }
-      }
-    )
-    //} catch (err: any) {
-    //  throw err
-    //  // console.info("resp", resp.data);
-    //  //
-    //  console.info("error", err.response.data);
-    //}
-
-    // console.info("btxxxxx", btx.toJSON());
-
+    // return unseralized as API signTransaction is an asynchoronous action
+    await this.APIService.signTransaction(this.walletDetail.WalletID, data)
     return btx.unsignedSerialized
+  }
+
+  async sendTransaction(tx: TransactionRequest): Promise<TransactionResponse> {
+    if (!this.address) {
+      await this.getAddress()
+    }
+
+    const provider = checkProvider(this, 'sendTransaction')
+    const pop = await this.populateTransaction(tx)
+    delete pop.from
+
+    const txObj = Transaction.from(pop)
+    await this.signTransaction(txObj)
+
+    const txResponse: TransactionResponseParams = {
+      blockNumber: 0, // Default to 0 as this is an async transaction
+      blockHash: '0x0000000000000000000000000000000000000000000000000000000000000000', // not available yet
+      hash: '0x0000000000000000000000000000000000000000000000000000000000000000', // not available yet
+      index: 0,
+      type: 0,
+      to: tx.to as any,
+      from: this.address,
+      /**
+       *
+       */
+      nonce: txObj.nonce, // The nonce of the transaction, used for replay protection.
+      /**
+       *  The maximum amount of gas this transaction is authorized to consume.
+       */
+      gasLimit: txObj.gasLimit,
+
+      /**
+       *  For legacy transactions, this is the gas price per gas to pay.
+       */
+      gasPrice: txObj.gasPrice ? txObj.gasPrice : BigInt(0),
+
+      /**
+       *  For [[link-eip-1559]] transactions, this is the maximum priority
+       *  fee to allow a producer to claim.
+       */
+      maxPriorityFeePerGas: txObj.maxPriorityFeePerGas,
+
+      /**
+       *  For [[link-eip-1559]] transactions, this is the maximum fee that
+       *  will be paid.
+       */
+      maxFeePerGas: txObj.maxFeePerGas,
+
+      /**
+       *  The transaction data.
+       */
+      data: txObj.data,
+
+      /**
+       *  The transaction value (in wei).
+       */
+      value: txObj.value,
+
+      /**
+       *  The chain ID this transaction is valid on.
+       */
+      chainId: txObj.chainId,
+
+      signature: Signature.from('0x' + '0'.repeat(130)), // length of signature is 65 bytes - 130 hex chars
+      /**
+       *  The transaction access list.
+       */
+      accessList: txObj.accessList
+    }
+    return new TransactionResponse(txResponse, this.provider as Provider)
+  }
+
+  signMessage(message: string | Uint8Array): Promise<string> {
+    throw new Error('signMessage will be supported asap!')
+  }
+
+  signTypedData(
+    domain: TypedDataDomain,
+    types: Record<string, Array<TypedDataField>>,
+    value: Record<string, any>
+  ): Promise<string> {
+    throw new Error('sign typed data will be supported asap!')
   }
 }
 
-// new ApexSginer({
-//  address: '0x1234567890123456789012345678901234567890',
-// })
+function checkProvider(signer: AbstractSigner, operation: string): Provider {
+  if (signer.provider) {
+    return signer.provider
+  }
+  assert(false, 'missing provider', 'UNSUPPORTED_OPERATION', { operation })
+}
