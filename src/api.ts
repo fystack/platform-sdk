@@ -56,10 +56,9 @@ export class APIService {
   }
 
   async getWalletDetail(): Promise<WalletDetail> {
-    const endpoint = config.API.endpoints.getWalletDetail(this.credentials.APIKey)
+    const endpoint = config.API.endpoints.getWalletDetail()
     console.info('getWalletDetail', endpoint)
     const headers = await this.composeAPIHeaders('GET', endpoint)
-    console.info('headers', headers)
     const resp = await get(endpoint + '?address_type=evm', headers)
     return transformWalletDetail(resp.data)
   }

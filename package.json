@@ -1,9 +1,14 @@
 {
-  "name": "wallet-sdk",
-  "version": "1.0.0",
-  "description": "",
+  "name": "@anhthi/wallet-sdk",
+  "version": "0.0.1",
+  "description": "Wallet SDK",
   "main": "dist/index.js",
   "types": "dist/types/index.d.ts",
+  "exports": {
+    "module": "./dist/index.esm.js",
+    "import": "./dist/index.mjs",
+    "require": "./dist/index.cjs"
+  },
   "scripts": {
     "test": "npx vitest",
     "build": "bunchee",
@@ -13,7 +18,7 @@
   "author": "anhthii",
   "license": "ISC",
   "devDependencies": {
-    "bunchee": "^4.4.3",
+    "bunchee": "^4.4.8",
     "vitest": "^1.2.2"
   },
   "dependencies": {
@@ -21,5 +26,16 @@
     "ethers": "^6.10.0",
     "js-crypto-hmac": "^1.0.7",
     "js-encoding-utils": "^0.7.3"
-  }
+  },
+  "directories": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cryptoniumX/wallet-sdk.git"
+  },
+  "bugs": {
+    "url": "https://github.com/cryptoniumX/wallet-sdk/issues"
+  },
+  "homepage": "https://github.com/cryptoniumX/wallet-sdk#readme"
 }
