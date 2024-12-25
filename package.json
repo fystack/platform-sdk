@@ -1,6 +1,6 @@
 {
   "name": "@anhthi/wallet-sdk",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Wallet SDK",
   "main": "dist/index.js",
   "types": "dist/types/index.d.ts",
