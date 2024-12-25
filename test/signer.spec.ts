@@ -4,27 +4,27 @@ import { ApexSigner } from '../src/signer'
 
 describe('Signer', () => {
   const apiCredentials = {
-    APIKey: 'e9958e9e-7469-455a-82af-6087d9c8cc1b',
-    APISecret: 'de70e199ffae829b5aa9daf86172404a'
+    APIKey: '46f2a098-5c66-413b-b03c-2aa5871b8d4e',
+    APISecret: 'ce56de6770e96c5e0d9a075784fb4589'
   }
 
   test('test get address', async () => {
     const signer = new ApexSigner(apiCredentials)
 
     const address = await signer.getAddress()
-    expect(address).toBe('0xF3a58765cD7174E955B242B5c46b16308039B8DC')
+    expect(address).toBe('0x06A388F07F0EB0605D57947A7F1856a5e091940b')
   })
 
   test('test sign transaction', async () => {
     const signer = new ApexSigner(apiCredentials)
     const provider = new JsonRpcProvider(
-      'https://eth-goerli.blastapi.io/dd4d7bd5-bc9b-49af-a16b-722800947444'
+      'https://eth-sepolia.blastapi.io/dc856d31-b388-47b0-bae4-efd51cee0ab6'
     )
     const signerWithProvider = signer.connect(provider)
 
     const tx = await signerWithProvider.sendTransaction({
       to: '0xe6EBF81E9C225BbCEa9b5399E0D0d0f29f30f119',
-      value: ethers.parseEther('0.0013') // 1 ETH
+      value: ethers.parseEther('0.0000001') // 1 ETH
     })
 
     console.log('tx', tx)
