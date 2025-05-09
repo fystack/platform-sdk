@@ -1,0 +1,45 @@
+{
+  "name": "@fystack/sdk",
+  "version": "0.1.0",
+  "description": "Wallet SDK",
+  "main": "dist/index.cjs",
+  "types": "dist/types/index.d.ts",
+  "exports": {
+    "module": "./dist/index.esm.js",
+    "import": "./dist/index.mjs",
+    "require": "./dist/index.cjs"
+  },
+  "scripts": {
+    "test": "npx vitest",
+    "build": "bunchee",
+    "prepub": "npm run build",
+    "pub": "npm publish --access public"
+  },
+  "author": "anhthii",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/crypto-js": "^4.2.2",
+    "bunchee": "^4.4.8",
+    "vitest": "^1.2.2"
+  },
+  "dependencies": {
+    "@solana/web3.js": "^1.98.0",
+    "bs58": "^6.0.0",
+    "buffer": "^6.0.3",
+    "cross-fetch": "^4.0.0",
+    "crypto-js": "^4.2.0",
+    "ethers": "^6.10.0",
+    "rpc-websockets": "^10.0.0"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cryptoniumX/wallet-sdk.git"
+  },
+  "bugs": {
+    "url": "https://github.com/cryptoniumX/wallet-sdk/issues"
+  },
+  "homepage": "https://github.com/cryptoniumX/wallet-sdk#readme"
+}

@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "declaration": true,
+    "declarationDir": "dist/types",
+    "rootDirs": ["src", "test"],
+    "outDir": "dist",
+    "module": "es2020",
+    "target": "es2020",
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "moduleResolution": "node",
+    "lib": ["es2020"],
+    "strictNullChecks": true,
+    "noImplicitAny": true,
+    "skipLibCheck": true
+  },
+  "exclude": ["node_modules", "**/*.test.ts"]
+}
