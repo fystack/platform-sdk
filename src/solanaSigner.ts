@@ -12,12 +12,14 @@ export class SolanaSigner {
   private APIKey: string
   private walletDetail: WalletDetail
   private pollerOptions?: StatusPollerOptions
+  private APICredentials!: APICredentials
 
   constructor(
     credentials: APICredentials,
     environment: Environment,
     pollerOptions?: StatusPollerOptions
   ) {
+    this.APICredentials = credentials
     this.APIKey = credentials.apiKey
     this.APIService = new APIService(credentials, environment)
     this.pollerOptions = pollerOptions
@@ -45,7 +47,11 @@ export class SolanaSigner {
       return this.address
     }
 
-    if (!this.APIKey && !this.walletDetail?.WalletID) {
+    if (
+      !this.APICredentials.apiKey &&
+      !this.APICredentials.apiSecret &&
+      !this.walletDetail?.WalletID
+    ) {
       throw new Error('Wallet detail not found, use setWallet(walletId) to set wallet first!')
     }
 

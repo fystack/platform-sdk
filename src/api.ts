@@ -67,7 +67,13 @@ async function composeAPIHeaders(
   body: Record<string, any> = {}
 ): Promise<Record<string, string>> {
   if (credentials.apiSecret == '') {
-    // If APISecret is not provided, fallback to cookie mode with no headers
+    // If APISecret is not provided, use authToken
+    if (credentials.authToken) {
+      return {
+        Authorization: credentials.authToken
+      }
+    }
+    // fallback to cookie mode with no headers
     return {}
   }
 

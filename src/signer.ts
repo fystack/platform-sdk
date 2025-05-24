@@ -64,7 +64,11 @@ export class EtherSigner extends AbstractSigner {
       return this.address
     }
 
-    if (!this.APICredentials.apiKey && !this.walletDetail.WalletID) {
+    if (
+      !this.APICredentials.apiKey &&
+      !this.APICredentials.authToken &&
+      !this.walletDetail.WalletID
+    ) {
       throw new Error('Wallet detail not found, use setWallet(walletId) to set wallet first!')
     }
 

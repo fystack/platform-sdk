@@ -27,6 +27,9 @@ export enum TxApprovalStatus {
 export interface APICredentials {
   apiKey: string
   apiSecret: string
+
+  // Optional
+  authToken?: string
 }
 
 export interface WebhookEvent {
