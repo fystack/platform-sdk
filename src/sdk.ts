@@ -1,17 +1,16 @@
 import { APIService } from './api'
-import { APICredentials, CreateWalletOptions } from './types'
 import { Environment } from './config'
 import { StatusPoller } from './utils/statusPoller'
 import {
-  WalletCreationStatus,
   CreateWalletResponse,
   WalletCreationStatusResponse,
-  WalletType,
   WalletAsset,
-  AddressType,
-  DepositAddressResponse
+  DepositAddressResponse,
+  APICredentials,
+  CreateWalletOptions
 } from './types'
 import { validateUUID } from './utils'
+import { AddressType, WalletCreationStatus, WalletType } from './enum'
 
 export interface SDKOptions {
   credentials: APICredentials
@@ -45,11 +44,13 @@ export class FystackSDK {
     options: CreateWalletOptions,
     waitForCompletion: boolean = true
   ): Promise<CreateWalletResponse> {
-    const { name, walletType = WalletType.Standard } = options
+    const { name, walletType = WalletType.Standard, sweepTaskParams, walletPurpose } = options
 
     const response = await this.apiService.createWallet({
       name,
-      walletType
+      walletType,
+      walletPurpose,
+      sweepTaskParams
     })
 
     if (waitForCompletion && response.status === WalletCreationStatus.Pending) {
