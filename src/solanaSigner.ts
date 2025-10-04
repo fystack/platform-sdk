@@ -1,10 +1,11 @@
-import { APIService, WalletAddressType, WalletDetail } from './api'
-import { APICredentials, TransactionStatusResponse, TxStatus, TransactionError } from './types'
+import { APIService, WalletDetail } from './api'
+import { APICredentials, TransactionStatusResponse, TransactionError } from './types'
 import { Environment } from './config'
 import { StatusPoller, StatusPollerOptions } from './utils/statusPoller'
 import { Transaction, PublicKey, VersionedTransaction } from '@solana/web3.js'
 import bs58 from 'bs58'
 import { Buffer } from 'buffer'
+import { AddressType, TxStatus } from './enum'
 
 export class SolanaSigner {
   private address!: string
@@ -56,7 +57,7 @@ export class SolanaSigner {
     }
 
     const detail: WalletDetail = await this.APIService.getWalletDetail(
-      WalletAddressType.Sol,
+      AddressType.Solana,
       this.walletDetail?.WalletID
     )
 

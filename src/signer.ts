@@ -15,10 +15,11 @@ import {
   Signature
 } from 'ethers'
 import { TransactionRequest } from 'ethers/src.ts/providers'
-import { APIService, WalletDetail, WalletAddressType } from './api'
-import { APICredentials, TransactionStatusResponse, TxStatus, TransactionError } from './types'
+import { APIService, WalletDetail } from './api'
+import { APICredentials, TransactionStatusResponse, TransactionError } from './types'
 import { Environment } from './config'
 import { StatusPoller, StatusPollerOptions } from './utils/statusPoller'
+import { AddressType, TxStatus } from './enum'
 
 export class EtherSigner extends AbstractSigner {
   private address!: string
@@ -73,7 +74,7 @@ export class EtherSigner extends AbstractSigner {
     }
 
     const detail: WalletDetail = await this.APIService.getWalletDetail(
-      WalletAddressType.Evm,
+      AddressType.Evm,
       this.walletDetail?.WalletID
     )
 
