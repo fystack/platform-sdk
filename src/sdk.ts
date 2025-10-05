@@ -44,13 +44,20 @@ export class FystackSDK {
     options: CreateWalletOptions,
     waitForCompletion: boolean = true
   ): Promise<CreateWalletResponse> {
-    const { name, walletType = WalletType.Standard, sweepTaskParams, walletPurpose } = options
+    const {
+      name,
+      walletType = WalletType.Standard,
+      sweepTaskParams,
+      walletPurpose,
+      sweepTaskId
+    } = options
 
     const response = await this.apiService.createWallet({
       name,
       walletType,
       walletPurpose,
-      sweepTaskParams
+      sweepTaskParams,
+      sweepTaskId
     })
 
     if (waitForCompletion && response.status === WalletCreationStatus.Pending) {

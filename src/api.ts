@@ -55,6 +55,7 @@ export interface CreateWalletPayload {
   walletType: WalletType
   walletPurpose?: WalletPurpose
   sweepTaskParams?: SweepTaskParams
+  sweepTaskId?: string
 }
 
 export interface PaymentServiceParams {
@@ -328,7 +329,10 @@ export function transformWalletDetail(data: Record<string, string>): WalletDetai
 export function transformCreateWalletPayload(data: CreateWalletPayload) {
   return {
     name: data.name,
-    wallet_type: data.walletType
+    wallet_type: data.walletType,
+    wallet_purpose: data.walletPurpose,
+    sweep_task_params: data.sweepTaskParams,
+    sweep_task_id: data.sweepTaskId
   }
 }
 

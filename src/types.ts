@@ -73,6 +73,7 @@ export interface CreateWalletOptions {
   walletType: WalletType
   walletPurpose?: WalletPurpose
   sweepTaskParams?: SweepTaskParams
+  sweepTaskId?: string
 }
 
 export interface CreateWalletResponse {
