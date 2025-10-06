@@ -23,7 +23,7 @@ describe('SDK', () => {
         destinationWalletId: '44651c57-b5f6-47f2-8688-fff633490a96',
         destinationType: DestinationType.InternalWallet
       },
-      sweepTaskId: '123'
+      sweepTaskId: 'e8624130-26da-4b17-a764-b248ff299320'
     })
 
     const responseCreation = await sdk.getWalletCreationStatus(response.wallet_id)
