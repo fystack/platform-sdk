@@ -21,13 +21,13 @@ export enum WalletCreationStatus {
 
 export enum AddressType {
   Evm = 'evm',
-  Solana = 'sol'
+  Solana = 'sol',
+  TRON = 'tron'
 }
 
 export enum DestinationType {
   InternalWallet = 'internal_wallet',
-  AddressBook = 'address_book',
-  ExternalWallet = 'external_wallet'
+  AddressBook = 'address_book'
 }
 
 export enum TxStatus {
