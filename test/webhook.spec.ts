@@ -1,6 +1,5 @@
 import { describe, test, expect } from 'vitest'
-import { APIService } from '../src/api'
-import { Environment } from '../src/config'
+import { APIService, Environment } from '../src'
 import { verifyEd25519 } from '../src/utils'
 
 describe('SDK', () => {

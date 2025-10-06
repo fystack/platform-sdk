@@ -1,7 +1,6 @@
 import { JsonRpcProvider, ethers } from 'ethers'
 import { describe, test, expect } from 'vitest'
-import { EtherSigner } from '../src/signer'
-import { Environment } from '../src/config'
+import { EtherSigner, Environment } from '../src'
 
 describe('Signer', () => {
   const apiCredentials = {
