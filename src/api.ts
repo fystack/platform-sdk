@@ -330,9 +330,15 @@ export function transformCreateWalletPayload(data: CreateWalletPayload) {
   return {
     name: data.name,
     wallet_type: data.walletType,
-    wallet_purpose: data.walletPurpose,
-    sweep_task_params: data.sweepTaskParams,
-    sweep_task_id: data.sweepTaskId
+    ...(data.walletPurpose !== undefined && { wallet_purpose: data.walletPurpose }),
+    ...(data.sweepTaskParams !== undefined && {
+      sweep_task_params: {
+        min_trigger_value_usd: data.sweepTaskParams?.minTriggerValueUsd,
+        destination_wallet_id: data.sweepTaskParams?.destinationWalletId,
+        destination_type: data.sweepTaskParams?.destinationType
+      }
+    }),
+    ...(data.sweepTaskId !== undefined && { sweep_task_id: data.sweepTaskId })
   }
 }
 

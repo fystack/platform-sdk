@@ -10,23 +10,21 @@ describe('SDK', () => {
   test('create new wallet', async () => {
     const sdk = new FystackSDK({
       credentials: apiCredentials,
-      environment: Environment.Production,
+      environment: Environment.Local,
       logger: true
     })
 
     const response = await sdk.createWallet({
-      name: 'Hello Solana 3',
-      walletType: WalletType.MPC,
+      name: 'Hello Solana 5',
+      walletType: WalletType.Standard,
       walletPurpose: WalletPurpose.User,
       sweepTaskParams: {
         minTriggerValueUsd: 100,
-        destinationWalletId: '44651c57-b5f6-47f2-8688-fff633490a96',
+        destinationWalletId: '5aad7600-fcc0-47a4-9051-b486e33cc516',
         destinationType: DestinationType.InternalWallet
-      },
-      sweepTaskId: 'e8624130-26da-4b17-a764-b248ff299320'
+      }
     })
 
-    const responseCreation = await sdk.getWalletCreationStatus(response.wallet_id)
-    console.log('responseCreation', responseCreation)
+    console.log('response', response)
   })
 })

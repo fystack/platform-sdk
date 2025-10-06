@@ -22,7 +22,7 @@ export enum WalletCreationStatus {
 export enum AddressType {
   Evm = 'evm',
   Solana = 'sol',
-  TRON = 'tron'
+  Tron = 'tron'
 }
 
 export enum DestinationType {
