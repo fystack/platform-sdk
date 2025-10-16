@@ -1,3 +1,6 @@
+import { SweepTaskParams } from './api'
+import { TxApprovalStatus, TxStatus, WalletCreationStatus, WalletPurpose, WalletType } from './enum'
+
 export class TransactionError extends Error {
   constructor(
     message: string,
@@ -8,20 +11,6 @@ export class TransactionError extends Error {
     super(message)
     this.name = 'TransactionError'
   }
-}
-export enum TxStatus {
-  Pending = 'pending',
-  Completed = 'completed',
-  Confirmed = 'confirmed',
-  Failed = 'failed',
-  PendingApproval = 'pending_approval',
-  Rejected = 'rejected'
-}
-
-export enum TxApprovalStatus {
-  Pending = 'pending',
-  Approved = 'approved',
-  Rejected = 'rejected'
 }
 
 export interface APICredentials {
@@ -79,20 +68,12 @@ export interface TransactionStatusResponse {
   failed_reason?: string
 }
 
-// Wallets
-export enum WalletType {
-  Standard = 'standard',
-  MPC = 'mpc'
-}
-
 export interface CreateWalletOptions {
   name: string
   walletType: WalletType
-}
-export enum WalletCreationStatus {
-  Pending = 'pending',
-  Success = 'success',
-  Error = 'error'
+  walletPurpose?: WalletPurpose
+  sweepTaskParams?: SweepTaskParams
+  sweepTaskId?: string
 }
 
 export interface CreateWalletResponse {
@@ -150,11 +131,6 @@ export interface WalletAsset {
   deposit_address: string
   hidden: boolean
   asset: WalletAssetDetail
-}
-
-export enum AddressType {
-  Evm = 'evm',
-  Solana = 'sol'
 }
 
 export interface DepositAddressResponse {

@@ -10,9 +10,7 @@ import {
   TransactionStatusResponse,
   CreateWalletResponse,
   WalletCreationStatusResponse,
-  WalletType,
   WalletAsset,
-  AddressType,
   DepositAddressResponse
 } from './types'
 import {
@@ -23,6 +21,7 @@ import {
   GetCheckoutPaymentResponse,
   GetCheckoutResponse
 } from './payment'
+import { AddressType, DestinationType, WalletPurpose, WalletType } from './enum'
 
 interface APIResponse {
   data: any
@@ -45,19 +44,23 @@ export interface WalletDetail {
   Address: string
 }
 
+export interface SweepTaskParams {
+  minTriggerValueUsd: number
+  destinationWalletId: string
+  destinationType: DestinationType
+}
+
 export interface CreateWalletPayload {
   name: string
   walletType: WalletType
+  walletPurpose?: WalletPurpose
+  sweepTaskParams?: SweepTaskParams
+  sweepTaskId?: string
 }
 
 export interface PaymentServiceParams {
   apiKey: string
   environment: Environment
-}
-
-export enum WalletAddressType {
-  Evm = 'evm',
-  Sol = 'sol'
 }
 
 async function composeAPIHeaders(
@@ -109,10 +112,7 @@ export class APIService {
     this.API = createAPI(environment)
   }
 
-  async getWalletDetail(
-    addressType: WalletAddressType = WalletAddressType.Evm,
-    walletId?: string
-  ): Promise<WalletDetail> {
+  async getWalletDetail(addressType = AddressType.Evm, walletId?: string): Promise<WalletDetail> {
     const endpoint = this.API.endpoints.getWalletDetail(walletId)
     const headers = await composeAPIHeaders(this.credentials, 'GET', endpoint)
     console.info('headers', headers)
@@ -329,7 +329,16 @@ export function transformWalletDetail(data: Record<string, string>): WalletDetai
 export function transformCreateWalletPayload(data: CreateWalletPayload) {
   return {
     name: data.name,
-    wallet_type: data.walletType
+    wallet_type: data.walletType,
+    ...(data.walletPurpose !== undefined && { wallet_purpose: data.walletPurpose }),
+    ...(data.sweepTaskParams !== undefined && {
+      sweep_task_params: {
+        min_trigger_value_usd: data.sweepTaskParams?.minTriggerValueUsd,
+        destination_wallet_id: data.sweepTaskParams?.destinationWalletId,
+        destination_type: data.sweepTaskParams?.destinationType
+      }
+    }),
+    ...(data.sweepTaskId !== undefined && { sweep_task_id: data.sweepTaskId })
   }
 }
 

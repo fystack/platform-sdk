@@ -30,7 +30,13 @@ const sdk = new FystackSDK({
 
 const response = await sdk.createWallet({
   name: 'My Blockchain Wallet',
-  walletType: WalletType.MPC // Multi-Party Computation wallet
+  walletType: WalletType.MPC, // Multi-Party Computation wallet
+  walletPurpose: WalletPurpose.User,
+  sweepTaskParams: {
+    minTriggerValueUsd: 100,
+    destinationWalletId: '0e123131211323xx1213',
+    destinationType: DestinationType.InternalWallet
+  }
 })
 
 console.log('Wallet ID:', response.wallet_id)

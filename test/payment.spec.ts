@@ -1,6 +1,5 @@
 import { describe, test } from 'vitest'
-import { PaymentService } from '../src/api'
-import { Environment } from '../src/config'
+import { PaymentService, Environment } from '../src'
 
 describe('SDK', () => {
   const apiCredentials = {

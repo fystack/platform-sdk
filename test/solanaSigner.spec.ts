@@ -1,8 +1,6 @@
 import { describe, test, expect } from 'vitest'
-import { SolanaSigner } from '../src/solanaSigner'
-import { Environment } from '../src/config'
-import { WalletAddressType } from '../src/api'
-import { Connection, PublicKey, SystemProgram, Transaction, clusterApiUrl } from '@solana/web3.js'
+import { SolanaSigner, Environment } from '../src'
+import { Connection, PublicKey, SystemProgram, Transaction } from '@solana/web3.js'
 
 describe('SolanaSigner', () => {
   const apiCredentials = {
