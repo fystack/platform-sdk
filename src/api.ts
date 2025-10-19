@@ -11,7 +11,8 @@ import {
   CreateWalletResponse,
   WalletCreationStatusResponse,
   WalletAsset,
-  DepositAddressResponse
+  DepositAddressResponse,
+  RescanTransactionParams
 } from './types'
 import {
   CreateCheckoutPayload,
@@ -201,6 +202,18 @@ export class APIService {
     const response = await get(endpoint, headers)
     return response.data
   }
+
+  /**
+   * Rescans a transaction on a specific network
+   * @param params Transaction hash and network ID
+   * @returns API response
+   */
+  async rescanTransaction(params: RescanTransactionParams): Promise<void> {
+    const endpoint = this.API.endpoints.rescanTransaction()
+    const transformedParams = transformRescanTransactionParams(params)
+    const headers = await composeAPIHeaders(this.credentials, 'POST', endpoint, transformedParams)
+    await post(endpoint, transformedParams, headers)
+  }
 }
 
 export class PaymentService {
@@ -339,6 +352,13 @@ export function transformCreateWalletPayload(data: CreateWalletPayload) {
       }
     }),
     ...(data.sweepTaskId !== undefined && { sweep_task_id: data.sweepTaskId })
+  }
+}
+
+export function transformRescanTransactionParams(data: RescanTransactionParams) {
+  return {
+    tx_hash: data.txHash,
+    network_id: data.networkId
   }
 }
 

@@ -7,7 +7,8 @@ import {
   WalletAsset,
   DepositAddressResponse,
   APICredentials,
-  CreateWalletOptions
+  CreateWalletOptions,
+  RescanTransactionParams
 } from './types'
 import { validateUUID } from './utils'
 import { AddressType, WalletCreationStatus, WalletType } from './enum'
@@ -144,5 +145,20 @@ export class FystackSDK {
 
     const depositAddressInfo = await this.apiService.getDepositAddress(walletId, addressType)
     return depositAddressInfo
+  }
+
+  /**
+   * Rescans a transaction on a specific network
+   * @param params Transaction hash and network ID
+   * @returns Promise that resolves when the rescan is initiated
+   */
+  async rescanTransaction(params: RescanTransactionParams): Promise<void> {
+    validateUUID(params.networkId, 'networkId')
+
+    if (!params.txHash || params.txHash.trim() === '') {
+      throw new Error('Invalid transaction hash provided')
+    }
+
+    await this.apiService.rescanTransaction(params)
   }
 }

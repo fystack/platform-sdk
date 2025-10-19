@@ -19,6 +19,7 @@ export interface APIEndpoints {
   getWalletCreationStatus: (walletId: string) => string
   getWalletAssets: (walletId: string) => string
   getDepositAddress: (walletId: string, addressType: string) => string
+  rescanTransaction: () => string
 }
 
 const getBaseURL = (env: Environment): string => {
@@ -26,7 +27,7 @@ const getBaseURL = (env: Environment): string => {
     case Environment.Local:
       return 'http://localhost:8150'
     case Environment.Sandbox:
-      return 'https://apex.void.exchange'
+      return 'https://api-dev.fystack.io'
     case Environment.Production:
       return 'https://api.fystack.io'
   }
@@ -67,7 +68,8 @@ const createAPI = (env: Environment): APIConfig => {
         withBaseURL(`/wallets/creation-status/${walletId}`),
       getWalletAssets: (walletId: string) => withBaseURL(`/wallets/${walletId}/assets`),
       getDepositAddress: (walletId: string, addressType: string) =>
-        withBaseURL(`/wallets/${walletId}/deposit-address?address_type=${addressType}`)
+        withBaseURL(`/wallets/${walletId}/deposit-address?address_type=${addressType}`),
+      rescanTransaction: () => withBaseURL('/networks/rescan-transaction')
     }
   }
 }
