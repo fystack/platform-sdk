@@ -27,7 +27,7 @@ const getBaseURL = (env: Environment): string => {
     case Environment.Local:
       return 'http://localhost:8150'
     case Environment.Sandbox:
-      return 'https://apex.void.exchange'
+      return 'https://api-dev.fystack.io'
     case Environment.Production:
       return 'https://api.fystack.io'
   }
