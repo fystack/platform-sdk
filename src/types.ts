@@ -138,3 +138,8 @@ export interface DepositAddressResponse {
   address: string
   qr_code: string
 }
+
+export interface RescanTransactionParams {
+  txHash: string
+  networkId: string
+}
