@@ -1,5 +1,5 @@
 import { SweepTaskParams } from './api'
-import { TxApprovalStatus, TxStatus, WalletCreationStatus, WalletPurpose, WalletType } from './enum'
+import { TxApprovalStatus, TxStatus, WalletCreationStatus, WalletPurpose, WalletRole, WalletType } from './enum'
 
 export class TransactionError extends Error {
   constructor(
@@ -142,4 +142,26 @@ export interface DepositAddressResponse {
 export interface RescanTransactionParams {
   txHash: string
   networkId: string
+}
+
+export interface WalletResponse {
+  id: string
+  name: string
+  value_usd: string
+  role: WalletRole
+}
+
+export interface TopAssets {
+  symbol: string
+  logo_url: string
+}
+
+export interface WalletByWorkspaceResponse {
+  id: string
+  name: string
+  role: string
+  wallet_type: string
+  value_usd: string
+  top_assets: TopAssets[]
+  wallet_purpose: string
 }

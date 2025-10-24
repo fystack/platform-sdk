@@ -44,3 +44,9 @@ export enum TxApprovalStatus {
   Approved = 'approved',
   Rejected = 'rejected'
 }
+
+export enum WalletRole {
+  Admin = 'wallet_admin',
+  Signer = 'wallet_signer',
+  Viewer = 'wallet_viewer'
+}

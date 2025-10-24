@@ -169,6 +169,14 @@ export class EtherSigner extends AbstractSigner {
     const startTime = new Date()
     console.log(`[WalletSDK] Transaction started at: ${startTime.toLocaleString()}`)
 
+    if (!this.address) {
+      await this.getAddress()
+    }
+
+    if (!this.walletDetail) {
+      this.walletDetail = await this.APIService.getWalletDetail()
+    }
+
     // Replace any Addressable or ENS name with an address
     const { to, from } = await resolveProperties({
       to: tx.to ? resolveAddress(tx.to, this.provider) : undefined,
@@ -228,6 +236,10 @@ export class EtherSigner extends AbstractSigner {
 
     if (!this.address) {
       await this.getAddress()
+    }
+
+    if (!this.walletDetail) {
+      this.walletDetail = await this.APIService.getWalletDetail()
     }
 
     checkProvider(this, 'sendTransaction')

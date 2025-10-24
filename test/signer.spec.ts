@@ -1,28 +1,38 @@
 import { JsonRpcProvider, ethers } from 'ethers'
 import { describe, test, expect } from 'vitest'
-import { EtherSigner, Environment } from '../src'
+import { EtherSigner, Environment, FystackSDK } from '../src'
 
 describe('Signer', () => {
   const apiCredentials = {
-    apiKey: '',
-    apiSecret: '',
-    authToken: ''
+    apiKey: import.meta.env.VITE_API_KEY_PROD,
+    apiSecret: import.meta.env.VITE_API_SECRET_PROD
   }
 
   test('test get address', async () => {
     const signer = new EtherSigner(apiCredentials, Environment.Local)
+    signer.setWallet('9de41256-32e0-4ed8-b038-bd8ab89c2e2a')
     const address = await signer.getAddress()
-    expect(address).toBe('0x512E683Dd57AdFD87B09D7D7D533Fe0FaBA4C125')
+    expect(address).toBe('0x83256dd90A8Fc7979D7e19cC6d33d0b1B10bb356')
   })
 
   test('test sign transaction', async () => {
-    const signer = new EtherSigner(apiCredentials, Environment.Local)
-    const provider = new JsonRpcProvider('https://eth-sepolia.public.blastapi.io')
-    const signerWithProvider = signer.connect(provider)
+    const sdk = new FystackSDK({
+      credentials: apiCredentials,
+      environment: Environment.Local,
+      workspaceId: 'fa0cbc2a-0dc8-4cd2-9f03-3ad9423787f4',
+      logger: true
+    })
 
-    const tx = await signerWithProvider.sendTransaction({
+    const wallets = await sdk.getWallets()
+    console.log('wallets', wallets)
+    const provider = new JsonRpcProvider('https://ethereum-sepolia-rpc.publicnode.com')
+
+    const signer = new EtherSigner(apiCredentials, Environment.Local, provider)
+    signer.setWallet(wallets[0].id)
+
+    const tx = await signer.sendTransaction({
       to: '0xe6EBF81E9C225BbCEa9b5399E0D0d0f29f30f119',
-      value: ethers.parseEther('0.0000001') // 1 ETH
+      value: ethers.parseEther('0.00001') // 1 ETH
     })
 
     console.log('tx response', tx.hash)

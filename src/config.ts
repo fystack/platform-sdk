@@ -11,6 +11,7 @@ export interface APIEndpoints {
   getSignStatus: (walletId: string, transactionId: string) => string
   getTransactionStatus: (walletId: string, transactionId: string) => string
   getWalletDetail: (walletId?: string) => string
+  getWallets: (workspaceId: string) => string
   createWallet: () => string
   createCheckout: () => string
   getCheckout: (checkoutId: string) => string
@@ -51,6 +52,7 @@ const createAPI = (env: Environment): APIConfig => {
         walletId
           ? withBaseURL(`/web3/wallet-detail/${walletId}`)
           : withBaseURL('/web3/wallet-detail'),
+      getWallets: (workspaceId: string) => withBaseURL(`/workspaces/${workspaceId}/wallets`),
       createWallet: () => withBaseURL('/wallets'),
       createCheckout: () => withBaseURL('/checkouts'),
       getCheckout: (checkoutId: string) => withBaseURL(`/checkouts/${checkoutId}`),

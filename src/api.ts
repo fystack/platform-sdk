@@ -12,7 +12,8 @@ import {
   WalletCreationStatusResponse,
   WalletAsset,
   DepositAddressResponse,
-  RescanTransactionParams
+  RescanTransactionParams,
+  WalletByWorkspaceResponse
 } from './types'
 import {
   CreateCheckoutPayload,
@@ -111,6 +112,13 @@ export class APIService {
     this.credentials = credentials
     this.Webhook = new WebhookService(credentials)
     this.API = createAPI(environment)
+  }
+
+  async getWallets(workspaceId: string): Promise<WalletByWorkspaceResponse[]> {
+    const endpoint = this.API.endpoints.getWallets(workspaceId)
+    const headers = await composeAPIHeaders(this.credentials, 'GET', endpoint)
+    const response = await get(endpoint, headers)
+    return response.data
   }
 
   async getWalletDetail(addressType = AddressType.Evm, walletId?: string): Promise<WalletDetail> {

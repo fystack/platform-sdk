@@ -8,13 +8,15 @@ import {
   DepositAddressResponse,
   APICredentials,
   CreateWalletOptions,
-  RescanTransactionParams
+  RescanTransactionParams,
+  WalletByWorkspaceResponse
 } from './types'
 import { validateUUID } from './utils'
 import { AddressType, WalletCreationStatus, WalletType } from './enum'
 
 export interface SDKOptions {
   credentials: APICredentials
+  workspaceId?: string
   environment?: Environment
   logger?: boolean
 }
@@ -22,11 +24,18 @@ export interface SDKOptions {
 export class FystackSDK {
   private apiService: APIService
   private enableLogging: boolean
+  private workspaceId?: string
 
   constructor(options: SDKOptions) {
-    const { credentials, environment = Environment.Production, logger = false } = options
+    const {
+      credentials,
+      workspaceId,
+      environment = Environment.Production,
+      logger = false
+    } = options
     this.apiService = new APIService(credentials, environment)
     this.enableLogging = logger
+    this.workspaceId = workspaceId
   }
 
   private log(message: string): void {
@@ -66,6 +75,19 @@ export class FystackSDK {
     }
 
     return response
+  }
+
+  /**
+   * Gets all wallets for the workspace
+   * @returns Promise with list of wallets
+   */
+  async getWallets(): Promise<WalletByWorkspaceResponse[]> {
+    if (!this.workspaceId) {
+      throw new Error('Workspace ID is required. Please set workspaceId in the constructor.')
+    }
+
+    const wallets = await this.apiService.getWallets(this.workspaceId)
+    return wallets
   }
 
   /**
