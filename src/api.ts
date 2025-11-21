@@ -71,7 +71,7 @@ async function composeAPIHeaders(
   apiEndpoint: string,
   body: Record<string, any> = {}
 ): Promise<Record<string, string>> {
-  if (credentials.apiSecret == '') {
+  if (!credentials.apiSecret || credentials.apiSecret === '') {
     // If APISecret is not provided, use authToken
     if (credentials.authToken) {
       return {
