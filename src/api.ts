@@ -69,7 +69,8 @@ async function composeAPIHeaders(
   credentials: APICredentials,
   httpMethod: string,
   apiEndpoint: string,
-  body: Record<string, any> = {}
+  body: Record<string, any> = {},
+  options?: Record<string, string>
 ): Promise<Record<string, string>> {
   if (!credentials.apiSecret || credentials.apiSecret === '') {
     // If APISecret is not provided, use authToken
@@ -98,9 +99,7 @@ async function composeAPIHeaders(
     'ACCESS-API-KEY': credentials.apiKey,
     'ACCESS-TIMESTAMP': String(currentTimestampInSeconds),
     'ACCESS-SIGN': btoa(digest), // convert to base64
-    ...(credentials.idempotencyKey && {
-      'X-IDEMPOTENCY-KEY': credentials.idempotencyKey
-    })
+    ...options
   }
 
   return headers
@@ -132,9 +131,13 @@ export class APIService {
     return transformWalletDetail(resp.data)
   }
 
-  async requestSign(walletId: string, params: SignRequestParams): Promise<SignResponse> {
+  async requestSign(
+    walletId: string,
+    params: SignRequestParams,
+    options?: Record<string, string>
+  ): Promise<SignResponse> {
     const endpoint = this.API.endpoints.requestSign(walletId)
-    const headers = await composeAPIHeaders(this.credentials, 'POST', endpoint, params)
+    const headers = await composeAPIHeaders(this.credentials, 'POST', endpoint, params, options)
     const response = await post(endpoint, params, headers)
     return response.data
   }
@@ -146,10 +149,14 @@ export class APIService {
     return response.data
   }
 
-  async signTransaction(walletId: string, body: Record<string, any>): Promise<SignResponse> {
+  async signTransaction(
+    walletId: string,
+    body: Record<string, any>,
+    options?: Record<string, string>
+  ): Promise<SignResponse> {
     const startTime = Date.now()
     const endpoint = this.API.endpoints.signTransaction(walletId)
-    const headers = await composeAPIHeaders(this.credentials, 'POST', endpoint, body)
+    const headers = await composeAPIHeaders(this.credentials, 'POST', endpoint, body, options)
     const response = await post(endpoint, body, headers)
     const elapsedTime = Date.now() - startTime
 

@@ -26,7 +26,6 @@ export interface APICredentials {
 
   // Optional
   authToken?: string
-  idempotencyKey?: string
 }
 
 export interface WebhookEvent {
