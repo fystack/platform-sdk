@@ -1,5 +1,12 @@
 import { SweepTaskParams } from './api'
-import { TxApprovalStatus, TxStatus, WalletCreationStatus, WalletPurpose, WalletRole, WalletType } from './enum'
+import {
+  TxApprovalStatus,
+  TxStatus,
+  WalletCreationStatus,
+  WalletPurpose,
+  WalletRole,
+  WalletType
+} from './enum'
 
 export class TransactionError extends Error {
   constructor(
@@ -19,6 +26,7 @@ export interface APICredentials {
 
   // Optional
   authToken?: string
+  idempotencyKey?: string
 }
 
 export interface WebhookEvent {

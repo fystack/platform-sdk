@@ -97,7 +97,10 @@ async function composeAPIHeaders(
   const headers = {
     'ACCESS-API-KEY': credentials.apiKey,
     'ACCESS-TIMESTAMP': String(currentTimestampInSeconds),
-    'ACCESS-SIGN': btoa(digest) // convert to base64
+    'ACCESS-SIGN': btoa(digest), // convert to base64
+    ...(credentials.idempotencyKey && {
+      'X-IDEMPOTENCY-KEY': credentials.idempotencyKey
+    })
   }
 
   return headers
