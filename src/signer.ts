@@ -151,7 +151,7 @@ export class EtherSigner extends AbstractSigner {
         return result.status === TxStatus.Rejected
       }
     )
-    console.log('reulst', result)
+    console.log('result', result)
 
     if (!result.hash) {
       throw new TransactionError(
