@@ -165,7 +165,10 @@ export class EtherSigner extends AbstractSigner {
   }
 
   // Copied and editted from ethers.js -> Wallet -> BaseWallet
-  async signTransaction(tx: TransactionRequest, idempotencyKey?: string): Promise<string> {
+  async signTransaction(
+    tx: TransactionRequest,
+    options?: { idempotencyKey?: string }
+  ): Promise<string> {
     const startTime = new Date()
     console.log(`[WalletSDK] Transaction started at: ${startTime.toLocaleString()}`)
 
@@ -216,9 +219,11 @@ export class EtherSigner extends AbstractSigner {
       accessList: btx.accessList
     }
     // return unseralized as API signTransaction is an asynchoronous action
-    const response = await this.APIService.signTransaction(this.walletDetail.WalletID, data, {
-      ...(idempotencyKey ? { 'X-IDEMPOTENCY-KEY': idempotencyKey } : {})
-    })
+    const response = await this.APIService.signTransaction(
+      this.walletDetail.WalletID,
+      data,
+      options
+    )
     const txHash = await this.waitForTransactonStatus(response.transaction_id)
 
     const endTime = new Date()
@@ -234,7 +239,7 @@ export class EtherSigner extends AbstractSigner {
 
   async sendTransaction(
     tx: TransactionRequest,
-    idempotencyKey?: string
+    options?: { idempotencyKey?: string }
   ): Promise<TransactionResponse> {
     const startTime = new Date()
     console.log(`[WalletSDK] sendTransaction started at: ${startTime.toLocaleString()}`)
@@ -277,7 +282,7 @@ export class EtherSigner extends AbstractSigner {
 
     console.log('[WalletSDK] Tx Data', txObj)
 
-    const txHash = await this.signTransaction(txObj, idempotencyKey)
+    const txHash = await this.signTransaction(txObj, options)
 
     // Instead of creating a mock response, get the actual transaction from the provider
     const endTime = new Date()
@@ -346,7 +351,10 @@ export class EtherSigner extends AbstractSigner {
     return new TransactionResponse(txResponse, this.provider as Provider)
   }
 
-  async signMessage(message: string | Uint8Array, idempotencyKey?: string): Promise<string> {
+  async signMessage(
+    message: string | Uint8Array,
+    options?: { idempotencyKey?: string }
+  ): Promise<string> {
     if (!this.provider) {
       throw new Error('Provider is required for signing operations')
     }
@@ -362,12 +370,15 @@ export class EtherSigner extends AbstractSigner {
     const chainId = await this.getChainId()
     const messageStr = typeof message === 'string' ? message : Buffer.from(message).toString('hex')
 
-    const response = await this.APIService.requestSign(this.walletDetail.WalletID, {
-      method: 'eth_sign',
-      message: messageStr,
-      chain_id: chainId,
-      ...(idempotencyKey ? { 'X-IDEMPOTENCY-KEY': idempotencyKey } : {})
-    })
+    const response = await this.APIService.requestSign(
+      this.walletDetail.WalletID,
+      {
+        method: 'eth_sign',
+        message: messageStr,
+        chain_id: chainId
+      },
+      options
+    )
 
     return this.waitForSignature(this.walletDetail.WalletID, response.transaction_id)
   }
@@ -376,7 +387,7 @@ export class EtherSigner extends AbstractSigner {
     domain: TypedDataDomain,
     types: Record<string, Array<TypedDataField>>,
     value: Record<string, any>,
-    idempotencyKey?: string
+    options?: { idempotencyKey?: string }
   ): Promise<string> {
     if (!this.provider) {
       throw new Error('Provider is required for signing operations')
@@ -397,13 +408,16 @@ export class EtherSigner extends AbstractSigner {
       message: value
     })
 
-    const response = await this.APIService.requestSign(this.walletDetail.WalletID, {
-      method: 'eth_signTypedData_v4',
-      message: '',
-      chain_id: chainId,
-      typed_data: typedData,
-      ...(idempotencyKey ? { 'X-IDEMPOTENCY-KEY': idempotencyKey } : {})
-    })
+    const response = await this.APIService.requestSign(
+      this.walletDetail.WalletID,
+      {
+        method: 'eth_signTypedData_v4',
+        message: '',
+        chain_id: chainId,
+        typed_data: typedData
+      },
+      options
+    )
 
     return this.waitForSignature(this.walletDetail.WalletID, response.transaction_id)
   }

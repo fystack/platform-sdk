@@ -117,7 +117,10 @@ export class SolanaSigner {
    * @param transaction Base64 encoded serialized transaction
    * @returns Signature as a base58 encoded string
    */
-  async signTransaction(transaction: string, idempotencyKey?: string): Promise<string> {
+  async signTransaction(
+    transaction: string,
+    options?: { idempotencyKey?: string }
+  ): Promise<string> {
     if (!this.address) {
       await this.getAddress()
     }
@@ -137,9 +140,7 @@ export class SolanaSigner {
         },
         chainId: '1399811149'
       },
-      {
-        ...(idempotencyKey ? { 'X-IDEMPOTENCY-KEY': idempotencyKey } : {})
-      }
+      options
     )
 
     // Wait for the signature
@@ -151,7 +152,10 @@ export class SolanaSigner {
    * @param message The message to sign (string or Uint8Array)
    * @returns Signature as a base58 encoded string
    */
-  async signMessage(message: string | Uint8Array): Promise<string> {
+  async signMessage(
+    message: string | Uint8Array,
+    options?: { idempotencyKey?: string }
+  ): Promise<string> {
     if (!this.address) {
       await this.getAddress()
     }
@@ -159,11 +163,15 @@ export class SolanaSigner {
     const messageStr =
       typeof message === 'string' ? message : Buffer.from(message).toString('base64')
 
-    const response = await this.APIService.requestSign(this.walletDetail.WalletID, {
-      method: 'solana_signMessage',
-      message: messageStr,
-      chain_id: 0 // Not used for Solana but required by API
-    })
+    const response = await this.APIService.requestSign(
+      this.walletDetail.WalletID,
+      {
+        method: 'solana_signMessage',
+        message: messageStr,
+        chain_id: 0 // Not used for Solana but required by API
+      },
+      options
+    )
 
     return this.waitForTransactionStatus(response.transaction_id)
   }
@@ -173,7 +181,10 @@ export class SolanaSigner {
    * @param transaction Base64 encoded serialized transaction
    * @returns Transaction signature
    */
-  async signAndSendTransaction(transaction: string, idempotencyKey?: string): Promise<string> {
+  async signAndSendTransaction(
+    transaction: string,
+    options?: { idempotencyKey?: string }
+  ): Promise<string> {
     if (!this.address) {
       await this.getAddress()
     }
@@ -184,9 +195,11 @@ export class SolanaSigner {
       method: 'solana_signAndSendTransaction'
     }
 
-    const response = await this.APIService.signTransaction(this.walletDetail.WalletID, data, {
-      ...(idempotencyKey ? { 'X-IDEMPOTENCY-KEY': idempotencyKey } : {})
-    })
+    const response = await this.APIService.signTransaction(
+      this.walletDetail.WalletID,
+      data,
+      options
+    )
     const txHash = await this.waitForTransactionStatus(response.transaction_id)
     console.log('transaction succeed!')
 
@@ -200,7 +213,7 @@ export class SolanaSigner {
    */
   async signAllTransactions(
     transactions: string[],
-    idempotencyKey?: string
+    options?: { idempotencyKey?: string }
   ): Promise<{ transactions: string[] }> {
     if (!this.address) {
       await this.getAddress()
@@ -209,7 +222,7 @@ export class SolanaSigner {
     // We need to get the signatures and then incorporate them into the transactions
     const signaturePromises = transactions.map(async (transaction) => {
       // Get the signature
-      const signature = await this.signTransaction(transaction, idempotencyKey)
+      const signature = await this.signTransaction(transaction, options)
 
       // Here you would need to incorporate the signature into the transaction
       // This is a placeholder - you'll need to implement actual signature incorporation
