@@ -70,7 +70,7 @@ async function composeAPIHeaders(
   httpMethod: string,
   apiEndpoint: string,
   body: Record<string, any> = {},
-  headerOptions?: Record<string, string>
+  headers?: Record<string, string>
 ): Promise<Record<string, string>> {
   if (!credentials.apiSecret || credentials.apiSecret === '') {
     // If APISecret is not provided, use authToken
@@ -95,14 +95,14 @@ async function composeAPIHeaders(
 
   const digest = await computeHMAC(credentials.apiSecret, params as Record<string, any>)
 
-  const headers = {
+  const combinedHeaders = {
     'ACCESS-API-KEY': credentials.apiKey,
     'ACCESS-TIMESTAMP': String(currentTimestampInSeconds),
     'ACCESS-SIGN': btoa(digest), // convert to base64
-    ...headerOptions
+    ...(headers ?? {})
   }
 
-  return headers
+  return combinedHeaders
 }
 
 export class APIService {
