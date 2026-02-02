@@ -50,3 +50,13 @@ export enum WalletRole {
   Signer = 'wallet_signer',
   Viewer = 'wallet_viewer'
 }
+
+export enum WithdrawalStatus {
+  Pending = 'pending',
+  PendingApproval = 'pending_approval',
+  Approved = 'approved',
+  Rejected = 'rejected',
+  Processing = 'processing',
+  Completed = 'completed',
+  Failed = 'failed'
+}

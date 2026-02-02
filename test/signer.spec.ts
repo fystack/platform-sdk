@@ -4,22 +4,22 @@ import { EtherSigner, Environment, FystackSDK } from '../src'
 
 describe('Signer', () => {
   const apiCredentials = {
-    apiKey: import.meta.env.VITE_API_KEY_PROD,
-    apiSecret: import.meta.env.VITE_API_SECRET_PROD
+    apiKey: import.meta.env.VITE_API_KEY_SANDBOX,
+    apiSecret: import.meta.env.VITE_API_SECRET_SANDBOX
   }
 
   test('test get address', async () => {
-    const signer = new EtherSigner(apiCredentials, Environment.Local)
-    signer.setWallet('9de41256-32e0-4ed8-b038-bd8ab89c2e2a')
+    const signer = new EtherSigner(apiCredentials, Environment.Sandbox)
+    signer.setWallet('8d9d02b5-af83-43d7-b4be-7cd9729a6e64')
     const address = await signer.getAddress()
-    expect(address).toBe('0x83256dd90A8Fc7979D7e19cC6d33d0b1B10bb356')
+    expect(address).toBe('0xc9dF2A4398E09664d8e83Ba3FB4e1E4cab86831E')
   })
 
   test('test sign transaction', async () => {
     const sdk = new FystackSDK({
       credentials: apiCredentials,
-      environment: Environment.Local,
-      workspaceId: 'fa0cbc2a-0dc8-4cd2-9f03-3ad9423787f4',
+      environment: Environment.Sandbox,
+      workspaceId: '229681cb-ca36-4a66-bc04-9e7abcff85e1',
       logger: true
     })
 
@@ -27,8 +27,8 @@ describe('Signer', () => {
     console.log('wallets', wallets)
     const provider = new JsonRpcProvider('https://ethereum-sepolia-rpc.publicnode.com')
 
-    const signer = new EtherSigner(apiCredentials, Environment.Local, provider)
-    signer.setWallet(wallets[0].id)
+    const signer = new EtherSigner(apiCredentials, Environment.Sandbox, provider)
+    signer.setWallet('8d9d02b5-af83-43d7-b4be-7cd9729a6e64')
 
     const tx = await signer.sendTransaction({
       to: '0xe6EBF81E9C225BbCEa9b5399E0D0d0f29f30f119',

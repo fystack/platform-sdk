@@ -9,7 +9,10 @@ import {
   APICredentials,
   CreateWalletOptions,
   RescanTransactionParams,
-  WalletByWorkspaceResponse
+  WalletByWorkspaceResponse,
+  RequestWithdrawalParams,
+  RequestWithdrawalResponse,
+  WebhookPublicKeyResponse
 } from './types'
 import { validateUUID } from './utils'
 import { AddressType, WalletCreationStatus, WalletType } from './enum'
@@ -182,5 +185,54 @@ export class FystackSDK {
     }
 
     await this.apiService.rescanTransaction(params)
+  }
+
+  /**
+   * Requests a withdrawal from a wallet
+   * @param walletId The ID of the wallet to withdraw from
+   * @param params Withdrawal parameters including asset, amount, and recipient
+   * @returns Promise with withdrawal response including auto_approved status and withdrawal details
+   */
+  async requestWithdrawal(
+    walletId: string,
+    params: RequestWithdrawalParams
+  ): Promise<RequestWithdrawalResponse> {
+    validateUUID(walletId, 'walletId')
+    validateUUID(params.assetId, 'assetId')
+
+    if (!params.amount || params.amount.trim() === '') {
+      throw new Error('Invalid amount provided')
+    }
+
+    if (!params.recipientAddress || params.recipientAddress.trim() === '') {
+      throw new Error('Invalid recipient address provided')
+    }
+
+    if (params.recipientAddress.length > 256) {
+      throw new Error('Recipient address exceeds maximum length of 256 characters')
+    }
+
+    if (params.notes && params.notes.length > 500) {
+      throw new Error('Notes exceed maximum length of 500 characters')
+    }
+
+    this.log(`Requesting withdrawal from wallet ${walletId}`)
+    const response = await this.apiService.requestWithdrawal(walletId, params)
+    this.log(`Withdrawal request completed, auto_approved: ${response.auto_approved}`)
+
+    return response
+  }
+
+  /**
+   * Gets the webhook public key for a workspace
+   * @param workspaceId The workspace ID
+   * @returns Promise with webhook public key (base64 encoded ed25519 public key)
+   */
+  async getWebhookPublicKey(workspaceId: string): Promise<WebhookPublicKeyResponse> {
+    validateUUID(workspaceId, 'workspaceId')
+
+    this.log(`Getting webhook public key for workspace ${workspaceId}`)
+    const response = await this.apiService.getWebhookPublicKey(workspaceId)
+    return response
   }
 }

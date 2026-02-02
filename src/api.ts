@@ -13,7 +13,10 @@ import {
   WalletAsset,
   DepositAddressResponse,
   RescanTransactionParams,
-  WalletByWorkspaceResponse
+  WalletByWorkspaceResponse,
+  RequestWithdrawalParams,
+  RequestWithdrawalResponse,
+  WebhookPublicKeyResponse
 } from './types'
 import {
   CreateCheckoutPayload,
@@ -232,6 +235,35 @@ export class APIService {
     const headers = await composeAPIHeaders(this.credentials, 'POST', endpoint, transformedParams)
     await post(endpoint, transformedParams, headers)
   }
+
+  /**
+   * Requests a withdrawal from a wallet
+   * @param walletId The wallet ID
+   * @param params Withdrawal parameters
+   * @returns Withdrawal response with auto_approved status and withdrawal details
+   */
+  async requestWithdrawal(
+    walletId: string,
+    params: RequestWithdrawalParams
+  ): Promise<RequestWithdrawalResponse> {
+    const endpoint = this.API.endpoints.requestWithdrawal(walletId)
+    const transformedParams = transformRequestWithdrawalParams(params)
+    const headers = await composeAPIHeaders(this.credentials, 'POST', endpoint, transformedParams)
+    const response = await post(endpoint, transformedParams, headers)
+    return response.data
+  }
+
+  /**
+   * Gets the webhook public key for a workspace
+   * @param workspaceId The workspace ID
+   * @returns Webhook public key response with base64 encoded ed25519 public key
+   */
+  async getWebhookPublicKey(workspaceId: string): Promise<WebhookPublicKeyResponse> {
+    const endpoint = this.API.endpoints.getWebhookPublicKey(workspaceId)
+    const headers = await composeAPIHeaders(this.credentials, 'GET', endpoint)
+    const response = await get(endpoint, headers)
+    return response.data
+  }
 }
 
 export class PaymentService {
@@ -377,6 +409,16 @@ export function transformRescanTransactionParams(data: RescanTransactionParams) 
   return {
     tx_hash: data.txHash,
     network_id: data.networkId
+  }
+}
+
+export function transformRequestWithdrawalParams(data: RequestWithdrawalParams) {
+  return {
+    asset_id: data.assetId,
+    amount: data.amount,
+    recipient_address: data.recipientAddress,
+    ...(data.notes !== undefined && { notes: data.notes }),
+    ...(data.skipBalanceCheck !== undefined && { skip_balance_check: data.skipBalanceCheck })
   }
 }
 
