@@ -59,7 +59,7 @@ export class FystackSDK {
   ): Promise<CreateWalletResponse> {
     const {
       name,
-      walletType = WalletType.Standard,
+      walletType = WalletType.Hyper,
       sweepTaskParams,
       walletPurpose,
       sweepTaskId

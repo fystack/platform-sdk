@@ -1,6 +1,6 @@
 // Wallets
 export enum WalletType {
-  Standard = 'standard',
+  Hyper = 'standard',
   MPC = 'mpc'
 }
 
