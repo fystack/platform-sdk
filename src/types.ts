@@ -5,7 +5,8 @@ import {
   WalletCreationStatus,
   WalletPurpose,
   WalletRole,
-  WalletType
+  WalletType,
+  WithdrawalStatus
 } from './enum'
 
 export class TransactionError extends Error {
@@ -171,4 +172,62 @@ export interface WalletByWorkspaceResponse {
   value_usd: string
   top_assets: TopAssets[]
   wallet_purpose: string
+}
+
+export interface RequestWithdrawalParams {
+  assetId: string
+  amount: string
+  recipientAddress: string
+  notes?: string
+  skipBalanceCheck?: boolean
+}
+
+export interface WithdrawalApproval {
+  id: string
+  user_id: string
+  status: string
+  created_at: string
+  updated_at: string
+}
+
+export interface WithdrawalTransaction {
+  id: string
+  hash?: string
+  status: string
+  created_at: string
+  updated_at: string
+}
+
+export interface TxCategory {
+  id: string
+  name: string
+}
+
+export interface Withdrawal {
+  id: string
+  created_at: string
+  updated_at: string
+  amount: string
+  status: WithdrawalStatus
+  recipient_address: string
+  notes?: string
+  withdrawal_approvals: WithdrawalApproval[]
+  creator_id: string
+  asset_id: string
+  asset?: WalletAssetDetail
+  wallet_id: string
+  transaction_id?: string
+  transaction?: WithdrawalTransaction
+  asset_hold_id: string
+  error_reason?: string
+  categories?: TxCategory[]
+}
+
+export interface RequestWithdrawalResponse {
+  auto_approved: boolean
+  withdrawal: Withdrawal
+}
+
+export interface WebhookPublicKeyResponse {
+  public_key: string // base64 encoded ed25519 public key
 }
