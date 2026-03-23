@@ -23,6 +23,7 @@ export interface APIEndpoints {
   rescanTransaction: () => string
   requestWithdrawal: (walletId: string) => string
   getWebhookPublicKey: (workspaceId: string) => string
+  createSweepTask: (workspaceId: string) => string
 }
 
 const getBaseURL = (env: Environment): string => {
@@ -32,7 +33,7 @@ const getBaseURL = (env: Environment): string => {
     case Environment.Sandbox:
       return 'https://api-dev.fystack.io'
     case Environment.Production:
-      return 'https://api.fystack.io'
+      return 'https://fystack.excelon.io'
   }
 }
 
@@ -74,8 +75,12 @@ const createAPI = (env: Environment): APIConfig => {
       getDepositAddress: (walletId: string, addressType: string) =>
         withBaseURL(`/wallets/${walletId}/deposit-address?address_type=${addressType}`),
       rescanTransaction: () => withBaseURL('/networks/rescan-transaction'),
-      requestWithdrawal: (walletId: string) => withBaseURL(`/wallets/${walletId}/request-withdrawal`),
-      getWebhookPublicKey: (workspaceId: string) => withBaseURL(`/workspaces/${workspaceId}/webhook-verification-key`)
+      requestWithdrawal: (walletId: string) =>
+        withBaseURL(`/wallets/${walletId}/request-withdrawal`),
+      getWebhookPublicKey: (workspaceId: string) =>
+        withBaseURL(`/workspaces/${workspaceId}/webhook-verification-key`),
+      createSweepTask: (workspaceId: string) =>
+        withBaseURL(`/workspaces/${workspaceId}/automation/sweep-task`)
     }
   }
 }

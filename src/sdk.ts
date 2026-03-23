@@ -12,7 +12,9 @@ import {
   WalletByWorkspaceResponse,
   RequestWithdrawalParams,
   RequestWithdrawalResponse,
-  WebhookPublicKeyResponse
+  WebhookPublicKeyResponse,
+  CreateSweepTaskParams,
+  SweepTaskResponse
 } from './types'
 import { validateUUID } from './utils'
 import { AddressType, WalletCreationStatus, WalletType } from './enum'
@@ -21,28 +23,32 @@ export interface SDKOptions {
   credentials: APICredentials
   workspaceId?: string
   environment?: Environment
-  logger?: boolean
+  /** Enable debug logging. Defaults to false */
+  debug?: boolean
 }
 
 export class FystackSDK {
   private apiService: APIService
-  private enableLogging: boolean
+  private debugEnabled: boolean
   private workspaceId?: string
+
+  public automation: AutomationNamespace
 
   constructor(options: SDKOptions) {
     const {
       credentials,
       workspaceId,
       environment = Environment.Production,
-      logger = false
+      debug = false
     } = options
     this.apiService = new APIService(credentials, environment)
-    this.enableLogging = logger
+    this.debugEnabled = debug
     this.workspaceId = workspaceId
+    this.automation = new AutomationNamespace(this)
   }
 
   private log(message: string): void {
-    if (this.enableLogging) {
+    if (this.debugEnabled) {
       console.log(`[FystackSDK] ${message}`)
     }
   }
@@ -59,7 +65,7 @@ export class FystackSDK {
   ): Promise<CreateWalletResponse> {
     const {
       name,
-      walletType = WalletType.Standard,
+      walletType = WalletType.Hyper,
       sweepTaskParams,
       walletPurpose,
       sweepTaskId
@@ -233,6 +239,51 @@ export class FystackSDK {
 
     this.log(`Getting webhook public key for workspace ${workspaceId}`)
     const response = await this.apiService.getWebhookPublicKey(workspaceId)
+    return response
+  }
+
+  /** @internal */
+  _getApiService(): APIService {
+    return this.apiService
+  }
+
+  /** @internal */
+  _log(message: string): void {
+    this.log(message)
+  }
+
+  /** @internal */
+  _getWorkspaceId(): string {
+    if (!this.workspaceId) {
+      throw new Error('Workspace ID is required. Please set workspaceId in the constructor.')
+    }
+    return this.workspaceId
+  }
+}
+
+class AutomationNamespace {
+  private sdk: FystackSDK
+
+  constructor(sdk: FystackSDK) {
+    this.sdk = sdk
+  }
+
+  async createSweepTask(params: CreateSweepTaskParams): Promise<SweepTaskResponse> {
+    const workspaceId = this.sdk._getWorkspaceId()
+
+    validateUUID(params.destinationWalletId, 'destinationWalletId')
+    for (const walletId of params.walletIds) {
+      validateUUID(walletId, 'walletIds')
+    }
+    if (params.assetIds) {
+      for (const assetId of params.assetIds) {
+        validateUUID(assetId, 'assetIds')
+      }
+    }
+
+    this.sdk._log(`Creating sweep task "${params.name}" for workspace ${workspaceId}`)
+    const response = await this.sdk._getApiService().createSweepTask(workspaceId, params)
+    this.sdk._log(`Sweep task created with ID: ${response.id}`)
     return response
   }
 }

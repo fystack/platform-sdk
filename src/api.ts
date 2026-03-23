@@ -16,7 +16,9 @@ import {
   WalletByWorkspaceResponse,
   RequestWithdrawalParams,
   RequestWithdrawalResponse,
-  WebhookPublicKeyResponse
+  WebhookPublicKeyResponse,
+  CreateSweepTaskParams,
+  SweepTaskResponse
 } from './types'
 import {
   CreateCheckoutPayload,
@@ -264,6 +266,17 @@ export class APIService {
     const response = await get(endpoint, headers)
     return response.data
   }
+
+  async createSweepTask(
+    workspaceId: string,
+    params: CreateSweepTaskParams
+  ): Promise<SweepTaskResponse> {
+    const endpoint = this.API.endpoints.createSweepTask(workspaceId)
+    const transformedParams = transformCreateSweepTaskParams(params)
+    const headers = await composeAPIHeaders(this.credentials, 'POST', endpoint, transformedParams)
+    const response = await post(endpoint, transformedParams, headers)
+    return response.data
+  }
 }
 
 export class PaymentService {
@@ -419,6 +432,24 @@ export function transformRequestWithdrawalParams(data: RequestWithdrawalParams) 
     recipient_address: data.recipientAddress,
     ...(data.notes !== undefined && { notes: data.notes }),
     ...(data.skipBalanceCheck !== undefined && { skip_balance_check: data.skipBalanceCheck })
+  }
+}
+
+export function transformCreateSweepTaskParams(data: CreateSweepTaskParams) {
+  return {
+    name: data.name,
+    strategy: data.strategy,
+    min_trigger_value_usd: data.minTriggerValueUsd,
+    destination_wallet_id: data.destinationWalletId,
+    frequency_in_seconds: data.frequencyInSeconds,
+    wallet_ids: data.walletIds,
+    ...(data.sweepType !== undefined && { sweep_type: data.sweepType }),
+    ...(data.destinationType !== undefined && { destination_type: data.destinationType }),
+    ...(data.assetIds !== undefined && { asset_ids: data.assetIds }),
+    ...(data.reserveType !== undefined && { reserve_type: data.reserveType }),
+    ...(data.reserveAmountUsd !== undefined && { reserve_amount_usd: data.reserveAmountUsd }),
+    ...(data.reservePercentageUsd !== undefined && { reserve_percentage_usd: data.reservePercentageUsd }),
+    ...(data.enabled !== undefined && { enabled: data.enabled })
   }
 }
 

@@ -20,7 +20,7 @@ describe('Signer', () => {
       credentials: apiCredentials,
       environment: Environment.Sandbox,
       workspaceId: '229681cb-ca36-4a66-bc04-9e7abcff85e1',
-      logger: true
+      debug: true
     })
 
     const wallets = await sdk.getWallets()
