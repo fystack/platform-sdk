@@ -10,7 +10,7 @@ describe('Webhook Public Key', () => {
   const sdk = new FystackSDK({
     credentials: apiCredentials,
     environment: Environment.Sandbox,
-    logger: true
+    debug: true
   })
 
   describe('getWebhookPublicKey', () => {

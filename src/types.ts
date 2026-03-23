@@ -1,5 +1,9 @@
 import { SweepTaskParams } from './api'
 import {
+  DestinationType,
+  ReserveType,
+  SweepStrategy,
+  SweepType,
   TxApprovalStatus,
   TxStatus,
   WalletCreationStatus,
@@ -230,4 +234,56 @@ export interface RequestWithdrawalResponse {
 
 export interface WebhookPublicKeyResponse {
   public_key: string // base64 encoded ed25519 public key
+}
+
+export interface CreateSweepTaskParams {
+  /** Display name for the sweep task */
+  name: string
+  /** Sweep execution strategy */
+  strategy: SweepStrategy
+  /** Minimum USD value in a wallet to trigger a sweep */
+  minTriggerValueUsd: number
+  /** UUID of the destination wallet or address book record that receives swept funds */
+  destinationWalletId: string
+  /** How often (in seconds) the sweep task checks wallet balances */
+  frequencyInSeconds: number
+  /** List of wallet UUIDs to sweep from */
+  walletIds: string[]
+  /** Type of sweep task. Defaults to "default" */
+  sweepType?: SweepType
+  /** Whether the destination is an internal wallet or an address book entry. Defaults to "internal_wallet" */
+  destinationType?: DestinationType
+  /** Optional list of specific asset UUIDs to sweep. If omitted, all assets are swept */
+  assetIds?: string[]
+  /** Reserve strategy type (e.g. keep a fixed USD amount in the source wallet) */
+  reserveType?: ReserveType
+  /** Fixed USD amount to reserve in each source wallet (used when reserveType is "fixed_usd") */
+  reserveAmountUsd?: number
+  /** Percentage of USD value to reserve in each source wallet */
+  reservePercentageUsd?: number
+  /** Whether the task is enabled. Defaults to true */
+  enabled?: boolean
+}
+
+export interface SweepTaskResponse {
+  id: string
+  created_at: string
+  updated_at: string
+  name: string
+  workspace_id: string
+  strategy: string
+  min_trigger_value_usd: string
+  destination_wallet_id: string
+  frequency_in_seconds: number
+  gas_tank_wallet_id: string
+  last_executed_at: string | null
+  is_executing: boolean
+  enabled: boolean
+  created_by_user_id: string
+  sweep_type: string
+  destination_type: string
+  deviation_rate: string
+  reserve_type?: string
+  reserve_amount_usd?: string
+  reserve_percentage_usd?: string
 }

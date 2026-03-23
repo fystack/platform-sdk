@@ -11,7 +11,7 @@ describe('SDK', () => {
     const sdk = new FystackSDK({
       credentials: apiCredentials,
       environment: Environment.Local,
-      logger: true
+      debug: true
     })
 
     const response = await sdk.rescanTransaction({

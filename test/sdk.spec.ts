@@ -10,19 +10,14 @@ describe('SDK', () => {
   test('create new wallet', async () => {
     const sdk = new FystackSDK({
       credentials: apiCredentials,
-      environment: Environment.Local,
-      logger: true
+      environment: Environment.Production,
+      debug: true
     })
 
     const response = await sdk.createWallet({
-      name: 'Hello Solana 5',
-      walletType: WalletType.Standard,
-      walletPurpose: WalletPurpose.User,
-      sweepTaskParams: {
-        minTriggerValueUsd: 100,
-        destinationWalletId: '5aad7600-fcc0-47a4-9051-b486e33cc516',
-        destinationType: DestinationType.InternalWallet
-      }
+      name: 'Hello Execlon 2',
+      walletType: WalletType.Hyper,
+      walletPurpose: WalletPurpose.General
     })
 
     console.log('response', response)

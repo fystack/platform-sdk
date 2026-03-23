@@ -1,6 +1,6 @@
 // Wallets
 export enum WalletType {
-  Standard = 'standard',
+  Hyper = 'standard',
   MPC = 'mpc'
 }
 
@@ -59,4 +59,18 @@ export enum WithdrawalStatus {
   Processing = 'processing',
   Completed = 'completed',
   Failed = 'failed'
+}
+
+export enum SweepStrategy {
+  Periodic = 'periodic'
+}
+
+export enum SweepType {
+  Default = 'default',
+  PaymentLink = 'payment_link',
+  Checkout = 'checkout'
+}
+
+export enum ReserveType {
+  FixedUsd = 'fixed_usd'
 }

@@ -1,6 +1,6 @@
 # Fystack Platform SDK
 
-A Typescript SDK for Fystack's wallet and payment services, providing seamless integration with both EVM and Solana blockchains.
+A TypeScript SDK for Fystack's wallet and payment services, providing seamless integration with EVM, Solana, and Tron blockchains.
 
 ## Installation
 
@@ -8,199 +8,244 @@ A Typescript SDK for Fystack's wallet and payment services, providing seamless i
 npm install @fystack/sdk
 ```
 
-## Usage
-
-### Wallet Management
-
-Create and manage blockchain wallets with minimal code.
+## Quick Start
 
 ```typescript
-import { FystackSDK } from '@fystack/sdk'
-import { Environment, WalletType } from '@fystack/sdk'
+import { FystackSDK, Environment } from '@fystack/sdk'
 
-// Initialize the SDK
+// Find your workspace ID at https://app.fystack.io -> Developers -> API Key
 const sdk = new FystackSDK({
   credentials: {
     apiKey: 'YOUR_API_KEY',
     apiSecret: 'YOUR_API_SECRET'
   },
+  workspaceId: 'YOUR_WORKSPACE_ID',
   environment: Environment.Production,
-  logger: true // Enable logging
+  debug: true // Enable debug logging
+})
+```
+
+## Create Wallet
+
+Fystack supports two wallet types:
+
+- **Hyper** — Instantly created wallet. No async provisioning needed.
+- **MPC** — Multi-Party Computation wallet with distributed key management. Creation is async and requires polling for status.
+
+### Hyper Wallet
+
+```typescript
+import { WalletType, WalletPurpose } from '@fystack/sdk'
+
+const wallet = await sdk.createWallet({
+  name: 'Treasury Wallet',
+  walletType: WalletType.Hyper,
+  walletPurpose: WalletPurpose.General
 })
 
-const response = await sdk.createWallet({
-  name: 'My Blockchain Wallet',
-  walletType: WalletType.MPC, // Multi-Party Computation wallet
-  walletPurpose: WalletPurpose.User,
-  sweepTaskParams: {
-    minTriggerValueUsd: 100,
-    destinationWalletId: '0e123131211323xx1213',
-    destinationType: DestinationType.InternalWallet
+console.log('Wallet ID:', wallet.wallet_id)
+```
+
+### MPC Wallet
+
+MPC wallets are provisioned asynchronously. By default, `createWallet` waits for provisioning to complete before returning:
+
+```typescript
+const wallet = await sdk.createWallet({
+  name: 'MPC Wallet',
+  walletType: WalletType.MPC,
+  walletPurpose: WalletPurpose.General
+})
+
+console.log('Wallet ID:', wallet.wallet_id)
+console.log('Status:', wallet.status) // 'success' or 'error'
+```
+
+To return immediately and poll status manually:
+
+```typescript
+const wallet = await sdk.createWallet(
+  { name: 'MPC Wallet', walletType: WalletType.MPC },
+  false // don't wait for completion
+)
+
+// Poll status every 2 seconds until provisioned
+const interval = setInterval(async () => {
+  const status = await sdk.getWalletCreationStatus(wallet.wallet_id)
+  console.log('Status:', status.status)
+
+  if (status.status === 'success' || status.status === 'error') {
+    clearInterval(interval)
   }
+}, 2000)
+```
+
+## Get Deposit Address
+
+Retrieve deposit addresses for a specific wallet and address type.
+
+```typescript
+import { AddressType } from '@fystack/sdk'
+
+// Get EVM deposit address
+const evm = await sdk.getDepositAddress(wallet.wallet_id, AddressType.Evm)
+console.log('EVM Address:', evm.address)
+
+// Get Solana deposit address
+const sol = await sdk.getDepositAddress(wallet.wallet_id, AddressType.Solana)
+console.log('Solana Address:', sol.address)
+
+// Get Tron deposit address
+const tron = await sdk.getDepositAddress(wallet.wallet_id, AddressType.Tron)
+console.log('Tron Address:', tron.address)
+```
+
+## Create Withdrawal
+
+Request a withdrawal from a wallet to an external address.
+
+```typescript
+const withdrawal = await sdk.requestWithdrawal('WALLET_ID', {
+  assetId: 'ASSET_UUID',
+  amount: '10.5',
+  recipientAddress: '0xRecipientAddress',
+  notes: 'Monthly payout'
 })
 
-console.log('Wallet ID:', response.wallet_id)
-console.log('Status:', response.status)
-
-// Check wallet creation status
-const statusResponse = await sdk.getWalletCreationStatus(response.wallet_id)
-console.log('WalletID:', statusResponse.wallet_id)
+console.log('Auto approved:', withdrawal.auto_approved)
+console.log('Withdrawal ID:', withdrawal.withdrawal.id)
+console.log('Status:', withdrawal.withdrawal.status)
 ```
 
-### Solana Transaction Signing
+## Create Onchain Transaction
+
+Sign and broadcast transactions directly on EVM or Solana networks using the built-in signers.
+
+### EVM (Ethereum, Polygon, BSC, etc.)
 
 ```typescript
-import { SolanaSigner } from '@fystack/sdk'
-import { Connection, PublicKey, SystemProgram, Transaction } from '@solana/web3.js'
-
-async function signSolanaTransaction() {
-  // Initialize the signer
-  const signer = new SolanaSigner(
-    {
-      apiKey: 'YOUR_API_KEY',
-      apiSecret: 'YOUR_API_SECRET'
-    },
-    Environment.Production
-  )
-
-  // Get signer's address
-  const fromAddress = await signer.getAddress()
-  const fromPubkey = new PublicKey(fromAddress)
-
-  // Set recipient address
-  const toAddress = 'RECIPIENT_SOLANA_ADDRESS'
-  const toPubkey = new PublicKey(toAddress)
-
-  // Connect to Solana network
-  const connection = new Connection('https://api.mainnet-beta.solana.com/')
-
-  // Get recent blockhash
-  const { blockhash } = await connection.getLatestBlockhash({
-    commitment: 'finalized'
-  })
-
-  // Create transfer instruction
-  const transferInstruction = SystemProgram.transfer({
-    fromPubkey,
-    toPubkey,
-    lamports: 1000 // 0.000001 SOL
-  })
-
-  // Create and setup transaction
-  const transaction = new Transaction().add(transferInstruction)
-  transaction.recentBlockhash = blockhash
-  transaction.feePayer = fromPubkey
-
-  // Serialize the transaction to base64
-  const serializedTransaction = transaction
-    .serialize({
-      requireAllSignatures: false,
-      verifySignatures: false
-    })
-    .toString('base64')
-
-  // Sign the transaction
-  const signature = await signer.signTransaction(serializedTransaction)
-  console.log('Transaction signature:', signature)
-
-  return signature
-}
-```
-
-### Ethereum Transaction Signing
-
-```typescript
-import { EtherSigner } from '@fystack/sdk'
+import { EtherSigner, Environment } from '@fystack/sdk'
 import { JsonRpcProvider, ethers } from 'ethers'
 
-async function signEthereumTransaction() {
-  const address = await signer.getAddress()
-  console.log('Wallet address:', address)
+const signer = new EtherSigner(
+  { apiKey: 'YOUR_API_KEY', apiSecret: 'YOUR_API_SECRET' },
+  Environment.Production
+)
 
-  // Connect to a provider
-  const provider = new JsonRpcProvider('YOUR_RPC_ENDPOINT')
-  const signerWithProvider = signer.connect(provider)
+// Set the wallet to sign with
+signer.setWallet('WALLET_ID')
 
-  // Send a transaction
-  const tx = await signerWithProvider.sendTransaction({
-    to: '0xRecipientAddress',
-    value: ethers.parseEther('0.0001') // Amount in ETH
-  })
+// Connect to a provider and send a transaction
+const provider = new JsonRpcProvider('YOUR_RPC_ENDPOINT')
+const connectedSigner = signer.connect(provider)
 
-  console.log('Transaction hash:', tx.hash)
-  return tx.hash
-}
+const tx = await connectedSigner.sendTransaction({
+  to: '0xRecipientAddress',
+  value: ethers.parseEther('0.01')
+})
+
+console.log('Transaction hash:', tx.hash)
 ```
 
-### Payment Processing
-
-Create checkouts and process payments.
+### Solana
 
 ```typescript
-import { PaymentService } from '@fystack/sdk'
-import { Environment } from '@fystack/sdk'
+import { SolanaSigner, Environment } from '@fystack/sdk'
+import { Connection, PublicKey, SystemProgram, Transaction } from '@solana/web3.js'
 
-async function createPaymentCheckout() {
-  const paymentService = new PaymentService({
-    apiKey: 'YOUR_API_KEY',
-    environment: Environment.Production
-  })
+const signer = new SolanaSigner(
+  { apiKey: 'YOUR_API_KEY', apiSecret: 'YOUR_API_SECRET' },
+  Environment.Production
+)
 
-  // Create a checkout
-  const response = await paymentService.createCheckout({
-    price: '10.50',
-    currency: 'USD',
-    supported_assets: [
-      'SOL:1399811149', // Format: "ASSET:CHAIN_ID"
-      'USDC:1399811149'
-    ],
-    description: 'Premium subscription package',
-    success_url: 'https://yourapp.com/payment/success',
-    cancel_url: 'https://yourapp.com/payment/cancel',
-    product_id: 'YOUR_PRODUCT_ID',
-    customer_id: 'YOUR_CUSTOMER_ID',
-    order_id: 'YOUR_ORDER_ID',
-    enable_localization: false,
-    destination_wallet_id: 'YOUR_DESTINATION_WALLET_ID',
-    expiry_duration_seconds: 3600 // 1 hour
-  })
+const fromAddress = await signer.getAddress()
+const fromPubkey = new PublicKey(fromAddress)
+const toPubkey = new PublicKey('RECIPIENT_SOLANA_ADDRESS')
 
-  console.log('Checkout created:', response.id)
+const connection = new Connection('https://api.mainnet-beta.solana.com/')
+const { blockhash } = await connection.getLatestBlockhash({ commitment: 'finalized' })
 
-  // Get checkout details
-  const checkout = await paymentService.getCheckout(response.id)
+const transaction = new Transaction().add(
+  SystemProgram.transfer({ fromPubkey, toPubkey, lamports: 1_000_000 })
+)
+transaction.recentBlockhash = blockhash
+transaction.feePayer = fromPubkey
 
-  // Create payment using the first supported asset
-  const payment = await paymentService.createCheckoutPayment(response.id, {
-    pay_asset_id: checkout.supported_assets[0].id
-  })
+const serialized = transaction
+  .serialize({ requireAllSignatures: false, verifySignatures: false })
+  .toString('base64')
 
-  console.log('Payment created:', payment.id)
-  console.log('Send payment to:', payment.deposit_address)
-
-  // Get payment status
-  const paymentStatus = await paymentService.getCheckoutPayment(payment.id)
-  console.log('Payment status:', paymentStatus)
-
-  return payment
-}
+const signature = await signer.signTransaction(serialized)
+console.log('Transaction signature:', signature)
 ```
 
-### Webhook Verification
+## Sweep Task
+
+Automatically consolidate funds from multiple wallets into a central destination wallet on a recurring schedule.
 
 ```typescript
-import { APIService } from '@fystack/sdk'
+import { SweepStrategy, SweepType, DestinationType } from '@fystack/sdk'
 
-function verifyWebhook(event, signature) {
-  const apiService = new APIService(
-    {
-      apiKey: 'YOUR_API_KEY',
-      apiSecret: 'YOUR_API_SECRET'
-    },
-    Environment.Production
-  )
+const task = await sdk.automation.createSweepTask({
+  name: 'Daily Consolidation',
+  strategy: SweepStrategy.Periodic,
+  frequencyInSeconds: 86400, // every 24 hours
+  minTriggerValueUsd: 50, // only sweep if wallet holds >= $50
+  destinationWalletId: 'CENTRAL_WALLET_UUID',
+  destinationType: DestinationType.InternalWallet,
+  walletIds: [
+    'WALLET_UUID_1',
+    'WALLET_UUID_2',
+    'WALLET_UUID_3'
+  ],
+  // Optional: only sweep specific assets
+  assetIds: ['ASSET_UUID_1', 'ASSET_UUID_2'],
+  // Optional: keep a reserve in each source wallet
+  reserveType: ReserveType.FixedUsd,
+  reserveAmountUsd: 10 // keep $10 in each wallet
+})
 
-  const isValid = apiService.Webhook.verifyEvent(event, signature)
-  return isValid
-}
+console.log('Sweep task ID:', task.id)
+console.log('Enabled:', task.enabled)
+```
+
+## Webhook Verification
+
+Verify incoming webhook signatures to ensure authenticity.
+
+```typescript
+import { APIService, Environment } from '@fystack/sdk'
+
+const apiService = new APIService(
+  { apiKey: 'YOUR_API_KEY', apiSecret: 'YOUR_API_SECRET' },
+  Environment.Production
+)
+
+const isValid = await apiService.Webhook.verifyEvent(event, signature)
+```
+
+## Payment Processing
+
+Create checkouts and process crypto payments.
+
+```typescript
+import { PaymentService, Environment } from '@fystack/sdk'
+
+const paymentService = new PaymentService({
+  apiKey: 'YOUR_API_KEY',
+  environment: Environment.Production
+})
+
+const checkout = await paymentService.createCheckout({
+  price: '10.50',
+  currency: 'USD',
+  supported_assets: ['SOL:1399811149', 'USDC:1399811149'],
+  description: 'Premium subscription',
+  success_url: 'https://yourapp.com/success',
+  cancel_url: 'https://yourapp.com/cancel',
+  destination_wallet_id: 'YOUR_WALLET_ID',
+  expiry_duration_seconds: 3600
+})
+
+console.log('Checkout URL:', checkout.id)
 ```
