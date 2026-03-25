@@ -33,10 +33,16 @@ export interface Asset {
   network_id: string
   network?: Network
 }
+export interface AcceptedAsset {
+  asset: string
+  network: string
+}
+
 export interface CreateCheckoutPayload {
   price: string
   currency: string
-  supported_assets: string[]
+  supported_assets?: string[]
+  accepted_assets?: AcceptedAsset[]
   underpaid_cover_percent?: number
   description?: string
   success_url?: string

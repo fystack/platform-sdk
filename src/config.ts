@@ -33,7 +33,7 @@ const getBaseURL = (env: Environment): string => {
     case Environment.Sandbox:
       return 'https://api-dev.fystack.io'
     case Environment.Production:
-      return 'https://fystack.excelon.io'
+      return 'https://api.fystack.io'
   }
 }
 

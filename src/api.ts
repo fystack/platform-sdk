@@ -427,7 +427,9 @@ export function transformRescanTransactionParams(data: RescanTransactionParams) 
 
 export function transformRequestWithdrawalParams(data: RequestWithdrawalParams) {
   return {
-    asset_id: data.assetId,
+    ...(data.assetId !== undefined && { asset_id: data.assetId }),
+    ...(data.network !== undefined && { network: data.network }),
+    ...(data.asset !== undefined && { asset: data.asset }),
     amount: data.amount,
     recipient_address: data.recipientAddress,
     ...(data.notes !== undefined && { notes: data.notes }),
