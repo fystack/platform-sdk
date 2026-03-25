@@ -10,7 +10,8 @@ export enum WalletPurpose {
   Deployment = 'deployment',
   Custody = 'custody',
   User = 'user',
-  Payment = 'payment'
+  Payment = 'payment',
+  OneTimeUse = 'one_time_use'
 }
 
 export enum WalletCreationStatus {
