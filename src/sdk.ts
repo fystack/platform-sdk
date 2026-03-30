@@ -23,6 +23,7 @@ export interface SDKOptions {
   credentials: APICredentials
   workspaceId?: string
   environment?: Environment
+  domain?: string
   /** Enable debug logging. Defaults to false */
   debug?: boolean
 }
@@ -39,9 +40,10 @@ export class FystackSDK {
       credentials,
       workspaceId,
       environment = Environment.Production,
+      domain,
       debug = false
     } = options
-    this.apiService = new APIService(credentials, environment)
+    this.apiService = new APIService(credentials, environment, domain)
     this.debugEnabled = debug
     this.workspaceId = workspaceId
     this.automation = new AutomationNamespace(this)
@@ -204,7 +206,11 @@ export class FystackSDK {
     params: RequestWithdrawalParams
   ): Promise<RequestWithdrawalResponse> {
     validateUUID(walletId, 'walletId')
-    validateUUID(params.assetId, 'assetId')
+    if (params.assetId) {
+      validateUUID(params.assetId, 'assetId')
+    } else if (!params.asset || !params.network) {
+      throw new Error('Either assetId or both asset and network must be provided')
+    }
 
     if (!params.amount || params.amount.trim() === '') {
       throw new Error('Invalid amount provided')

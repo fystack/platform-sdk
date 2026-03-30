@@ -25,6 +25,26 @@ const sdk = new FystackSDK({
 })
 ```
 
+### Self-Hosted
+
+For customers running their own Fystack instance, provide your custom domain instead of an environment:
+
+```typescript
+import { FystackSDK } from '@fystack/sdk'
+
+const sdk = new FystackSDK({
+  credentials: {
+    apiKey: 'YOUR_API_KEY',
+    apiSecret: 'YOUR_API_SECRET'
+  },
+  workspaceId: 'YOUR_WORKSPACE_ID',
+  domain: 'api.your-company.com',
+  debug: true
+})
+```
+
+> When `domain` is provided, it takes priority over `environment`. The SDK will connect to `https://<domain>/api/v1`.
+
 ## Create Wallet
 
 Fystack supports two wallet types:
@@ -102,11 +122,14 @@ console.log('Tron Address:', tron.address)
 
 ## Create Withdrawal
 
-Request a withdrawal from a wallet to an external address.
+Request a withdrawal from a wallet to an external address. You can identify the asset either by `assetId` or by `asset` symbol + `network` code.
+
+### By asset and network (recommended)
 
 ```typescript
 const withdrawal = await sdk.requestWithdrawal('WALLET_ID', {
-  assetId: 'ASSET_UUID',
+  asset: 'ETH',
+  network: 'ETHEREUM_MAINNET',
   amount: '10.5',
   recipientAddress: '0xRecipientAddress',
   notes: 'Monthly payout'
@@ -115,6 +138,17 @@ const withdrawal = await sdk.requestWithdrawal('WALLET_ID', {
 console.log('Auto approved:', withdrawal.auto_approved)
 console.log('Withdrawal ID:', withdrawal.withdrawal.id)
 console.log('Status:', withdrawal.withdrawal.status)
+```
+
+### By asset ID
+
+```typescript
+const withdrawal = await sdk.requestWithdrawal('WALLET_ID', {
+  assetId: 'ASSET_UUID',
+  amount: '10.5',
+  recipientAddress: '0xRecipientAddress',
+  notes: 'Monthly payout'
+})
 ```
 
 ## Create Onchain Transaction
@@ -226,7 +260,7 @@ const isValid = await apiService.Webhook.verifyEvent(event, signature)
 
 ## Payment Processing
 
-Create checkouts and process crypto payments.
+Create checkouts and process crypto payments. You can specify accepted assets using `accepted_assets` (asset symbol + network code) or the legacy `supported_assets` format.
 
 ```typescript
 import { PaymentService, Environment } from '@fystack/sdk'
@@ -239,7 +273,11 @@ const paymentService = new PaymentService({
 const checkout = await paymentService.createCheckout({
   price: '10.50',
   currency: 'USD',
-  supported_assets: ['SOL:1399811149', 'USDC:1399811149'],
+  accepted_assets: [
+    { asset: 'SOL', network: 'SOL_MAINNET' },
+    { asset: 'ETH', network: 'ETHEREUM_MAINNET' },
+    { asset: 'ETH', network: 'BASE_MAINNET' },
+  ],
   description: 'Premium subscription',
   success_url: 'https://yourapp.com/success',
   cancel_url: 'https://yourapp.com/cancel',
@@ -248,4 +286,15 @@ const checkout = await paymentService.createCheckout({
 })
 
 console.log('Checkout URL:', checkout.id)
+```
+
+### Self-Hosted
+
+```typescript
+import { PaymentService } from '@fystack/sdk'
+
+const paymentService = new PaymentService({
+  apiKey: 'YOUR_API_KEY',
+  domain: 'api.your-company.com'
+})
 ```

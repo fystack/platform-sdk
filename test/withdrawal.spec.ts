@@ -3,24 +3,24 @@ import { FystackSDK, Environment, WithdrawalStatus } from '../src'
 
 describe('Withdrawal', () => {
   const apiCredentials = {
-    apiKey: import.meta.env.VITE_API_KEY_SANDBOX,
-    apiSecret: import.meta.env.VITE_API_SECRET_SANDBOX
+    apiKey: import.meta.env.VITE_API_KEY_PROD,
+    apiSecret: import.meta.env.VITE_API_SECRET_PROD
   }
 
   const sdk = new FystackSDK({
     credentials: apiCredentials,
-    environment: Environment.Sandbox,
+    environment: Environment.Production,
     debug: true
   })
 
   describe('requestWithdrawal', () => {
     test('should request a withdrawal successfully', async () => {
-      const walletId = 'f22d4c94-f0b9-445c-9dea-b4aca3957400'
+      const walletId = 'ca6b5c4d-753f-4c2d-af18-520f66a42bd4'
       const response = await sdk.requestWithdrawal(walletId, {
-        asset: 'ETH',
-        network: 'ETHEREUM_MAINNET',
-        amount: '0.0001',
-        recipientAddress: '0x1234567890abcdef1234567890abcdef12345678',
+        asset: 'USDT',
+        network: 'BSC_MAINNET',
+        amount: '0.01',
+        recipientAddress: '0xe6EBF81E9C225BbCEa9b5399E0D0d0f29f30f119',
         notes: 'Test withdrawal'
       })
 

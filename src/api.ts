@@ -67,7 +67,8 @@ export interface CreateWalletPayload {
 
 export interface PaymentServiceParams {
   apiKey: string
-  environment: Environment
+  environment?: Environment
+  domain?: string
 }
 
 async function composeAPIHeaders(
@@ -115,10 +116,10 @@ export class APIService {
   public Webhook: WebhookService
   private API: APIConfig
 
-  constructor(credentials: APICredentials, environment: Environment) {
+  constructor(credentials: APICredentials, environment?: Environment, domain?: string) {
     this.credentials = credentials
     this.Webhook = new WebhookService(credentials)
-    this.API = createAPI(environment)
+    this.API = createAPI(environment, domain)
   }
 
   async getWallets(workspaceId: string): Promise<WalletByWorkspaceResponse[]> {
@@ -285,7 +286,7 @@ export class PaymentService {
 
   constructor(params: PaymentServiceParams) {
     this.apiKey = params.apiKey
-    this.API = createAPI(params.environment)
+    this.API = createAPI(params.environment, params.domain)
   }
 
   async createCheckout(payload: CreateCheckoutPayload): Promise<CreateCheckoutResponse> {

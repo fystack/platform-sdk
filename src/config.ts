@@ -42,8 +42,23 @@ export interface APIConfig {
   endpoints: APIEndpoints
 }
 
-const createAPI = (env: Environment): APIConfig => {
-  const baseURL = `${getBaseURL(env)}/api/v1`
+function validateDomain(domain: string): void {
+  const domainPattern = /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/
+  if (!domainPattern.test(domain)) {
+    throw new Error(`Invalid domain: "${domain}". Expected a valid domain like "api.example.com"`)
+  }
+}
+
+const createAPI = (env?: Environment, domain?: string): APIConfig => {
+  let baseURL: string
+  if (domain) {
+    validateDomain(domain)
+    baseURL = `https://${domain}/api/v1`
+  } else if (env) {
+    baseURL = `${getBaseURL(env)}/api/v1`
+  } else {
+    baseURL = `${getBaseURL(Environment.Production)}/api/v1`
+  }
 
   const withBaseURL = (path: string) => `${baseURL}${path}`
 
