@@ -1,15 +1,8 @@
 import { describe, test, expect } from 'vitest'
-import { APIService, Environment } from '../src'
 import { verifyEd25519 } from '../src/utils'
 
 describe('SDK', () => {
-  const apiCredentials = {
-    apiKey: '9fe2f4eb-c0af-4d7c-b682-c99418490bf6',
-    apiSecret: ''
-  }
-
   test('create new checkout', async () => {
-    const apiService = new APIService(apiCredentials, Environment.Production)
     const event = {
       webhook_id: '73893532-8e3d-4bc7-b3f9-148c9b82b811',
       resource_id: 'c6702df0-b8ef-4a38-882d-dabf0d56127d',

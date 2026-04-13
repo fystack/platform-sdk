@@ -179,7 +179,9 @@ export interface WalletByWorkspaceResponse {
 }
 
 export interface RequestWithdrawalParams {
-  assetId: string
+  assetId?: string
+  network?: string
+  asset?: string
   amount: string
   recipientAddress: string
   notes?: string

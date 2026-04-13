@@ -15,9 +15,9 @@ describe('SDK', () => {
     })
 
     const response = await sdk.createWallet({
-      name: 'Hello Execlon 2',
+      name: 'My latest hyper wallet1',
       walletType: WalletType.Hyper,
-      walletPurpose: WalletPurpose.General
+      walletPurpose: WalletPurpose.OneTimeUse
     })
 
     console.log('response', response)

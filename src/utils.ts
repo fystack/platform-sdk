@@ -1,4 +1,5 @@
 import CryptoJS from 'crypto-js'
+import crypto from 'crypto'
 import { WebhookEvent } from './types'
 
 export async function computeHMAC(
@@ -90,6 +91,32 @@ export function isValidUUID(uuid: string): boolean {
  * @param paramName The name of the parameter being validated (for error message)
  * @throws Error if the UUID is invalid
  */
+/**
+ * Verifies an Ed25519 signature against a webhook event.
+ *
+ * @param publicKeyHex - The Ed25519 public key as a hex string.
+ * @param event - The webhook event object to verify.
+ * @param signatureHex - The Ed25519 signature as a hex string.
+ * @returns true if the signature is valid, false otherwise.
+ */
+export function verifyEd25519(
+  publicKeyHex: string,
+  event: WebhookEvent,
+  signatureHex: string
+): boolean {
+  const message = canonicalizeJSON(event)
+  const publicKey = crypto.createPublicKey({
+    key: Buffer.concat([
+      // Ed25519 DER prefix for a 32-byte public key
+      Buffer.from('302a300506032b6570032100', 'hex'),
+      Buffer.from(publicKeyHex, 'hex')
+    ]),
+    format: 'der',
+    type: 'spki'
+  })
+  return crypto.verify(null, Buffer.from(message), publicKey, Buffer.from(signatureHex, 'hex'))
+}
+
 export function validateUUID(uuid: string, paramName: string): void {
   if (!uuid || typeof uuid !== 'string') {
     throw new Error(`${paramName} is required and must be a string`)

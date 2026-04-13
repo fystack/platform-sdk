@@ -15,7 +15,11 @@ describe('SDK', () => {
     const response = await paymentService.createCheckout({
       price: '66',
       currency: 'USD',
-      supported_assets: ['SOL:1399811149', 'USDC:1399811149', 'ETH:8453', 'ETH:1', 'USDC:1'],
+      accepted_assets: [
+        { asset: 'SOL', network: 'SOL_MAINNET' },
+        { asset: 'ETH', network: 'BASE_MAINNET' },
+        { asset: 'ETH', network: 'ETHEREUM_MAINNET' },
+      ],
       description: 'Access to premium features and exclusive content.',
       success_url: 'https://example.com/payment/success',
       cancel_url: 'https://example.com/payment/cancel',
