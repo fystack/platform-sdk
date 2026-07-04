@@ -246,9 +246,7 @@ export class FystackSDK {
     validateUUID(walletId, 'walletId')
     validateUUID(withdrawalId, 'withdrawalId')
 
-    this.log(`Getting withdrawal status for ${withdrawalId} from wallet ${walletId}`)
     const response = await this.apiService.getWithdrawalStatus(walletId, withdrawalId)
-    this.log(`Withdrawal ${withdrawalId} status: ${response.status}`)
 
     return response
   }
