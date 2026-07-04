@@ -12,6 +12,7 @@ import {
   WalletByWorkspaceResponse,
   RequestWithdrawalParams,
   RequestWithdrawalResponse,
+  Withdrawal,
   WebhookPublicKeyResponse,
   CreateSweepTaskParams,
   SweepTaskResponse
@@ -231,6 +232,21 @@ export class FystackSDK {
     this.log(`Requesting withdrawal from wallet ${walletId}`)
     const response = await this.apiService.requestWithdrawal(walletId, params)
     this.log(`Withdrawal request completed, auto_approved: ${response.auto_approved}`)
+
+    return response
+  }
+
+  /**
+   * Gets the latest status/details for a withdrawal
+   * @param walletId The ID of the wallet that owns the withdrawal
+   * @param withdrawalId The ID of the withdrawal
+   * @returns Promise with withdrawal details including the latest status
+   */
+  async getWithdrawalStatus(walletId: string, withdrawalId: string): Promise<Withdrawal> {
+    validateUUID(walletId, 'walletId')
+    validateUUID(withdrawalId, 'withdrawalId')
+
+    const response = await this.apiService.getWithdrawalStatus(walletId, withdrawalId)
 
     return response
   }

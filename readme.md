@@ -140,6 +140,16 @@ console.log('Withdrawal ID:', withdrawal.withdrawal.id)
 console.log('Status:', withdrawal.withdrawal.status)
 ```
 
+### Get withdrawal status
+
+```typescript
+const status = await sdk.getWithdrawalStatus('WALLET_ID', withdrawal.withdrawal.id)
+
+console.log('Withdrawal ID:', status.id)
+console.log('Status:', status.status)
+console.log('Transaction:', status.transaction?.tx_hash)
+```
+
 ### By asset ID
 
 ```typescript

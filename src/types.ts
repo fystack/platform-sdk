@@ -199,6 +199,7 @@ export interface WithdrawalApproval {
 export interface WithdrawalTransaction {
   id: string
   hash?: string
+  tx_hash?: string
   status: string
   created_at: string
   updated_at: string
@@ -231,6 +232,7 @@ export interface Withdrawal {
 
 export interface RequestWithdrawalResponse {
   auto_approved: boolean
+  approval_bypassed_by_policy?: boolean
   withdrawal: Withdrawal
 }
 

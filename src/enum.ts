@@ -53,13 +53,14 @@ export enum WalletRole {
 }
 
 export enum WithdrawalStatus {
-  Pending = 'pending',
-  PendingApproval = 'pending_approval',
-  Approved = 'approved',
-  Rejected = 'rejected',
-  Processing = 'processing',
-  Completed = 'completed',
-  Failed = 'failed'
+  PendingApproval = 'PENDING_APPROVAL',
+  Cancelled = 'CANCELLED',
+  Pending = 'PENDING',
+  Failed = 'FAILED',
+  Executed = 'EXECUTED',
+  Success = 'SUCCESS',
+  FundingGas = 'FUNDING_GAS',
+  DeniedByPolicy = 'DENIED_BY_POLICY'
 }
 
 export enum SweepStrategy {
