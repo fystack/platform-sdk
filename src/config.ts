@@ -22,6 +22,7 @@ export interface APIEndpoints {
   getDepositAddress: (walletId: string, addressType: string) => string
   rescanTransaction: () => string
   requestWithdrawal: (walletId: string) => string
+  getWithdrawalStatus: (walletId: string, withdrawalId: string) => string
   getWebhookPublicKey: (workspaceId: string) => string
   createSweepTask: (workspaceId: string) => string
 }
@@ -92,6 +93,8 @@ const createAPI = (env?: Environment, domain?: string): APIConfig => {
       rescanTransaction: () => withBaseURL('/networks/rescan-transaction'),
       requestWithdrawal: (walletId: string) =>
         withBaseURL(`/wallets/${walletId}/request-withdrawal`),
+      getWithdrawalStatus: (walletId: string, withdrawalId: string) =>
+        withBaseURL(`/wallets/${walletId}/withdrawals/${withdrawalId}`),
       getWebhookPublicKey: (workspaceId: string) =>
         withBaseURL(`/workspaces/${workspaceId}/webhook-verification-key`),
       createSweepTask: (workspaceId: string) =>

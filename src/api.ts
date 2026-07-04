@@ -16,6 +16,7 @@ import {
   WalletByWorkspaceResponse,
   RequestWithdrawalParams,
   RequestWithdrawalResponse,
+  Withdrawal,
   WebhookPublicKeyResponse,
   CreateSweepTaskParams,
   SweepTaskResponse
@@ -253,6 +254,19 @@ export class APIService {
     const transformedParams = transformRequestWithdrawalParams(params)
     const headers = await composeAPIHeaders(this.credentials, 'POST', endpoint, transformedParams)
     const response = await post(endpoint, transformedParams, headers)
+    return response.data
+  }
+
+  /**
+   * Gets the latest status/details for a withdrawal
+   * @param walletId The wallet ID
+   * @param withdrawalId The withdrawal ID
+   * @returns Withdrawal details
+   */
+  async getWithdrawalStatus(walletId: string, withdrawalId: string): Promise<Withdrawal> {
+    const endpoint = this.API.endpoints.getWithdrawalStatus(walletId, withdrawalId)
+    const headers = await composeAPIHeaders(this.credentials, 'GET', endpoint)
+    const response = await get(endpoint, headers)
     return response.data
   }
 
