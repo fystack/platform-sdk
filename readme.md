@@ -45,6 +45,32 @@ const sdk = new FystackSDK({
 
 > When `domain` is provided, it takes priority over `environment`. The SDK will connect to `https://<domain>/api/v1`.
 
+### Authentication schemes
+
+The SDK signs every API request for you — you never need to build the
+canonical string or compute a signature by hand. Pick whichever scheme your
+API key was created with:
+
+```typescript
+// HMAC-SHA256 (secret-based) — the default
+const sdk = new FystackSDK({
+  credentials: { apiKey: 'YOUR_API_KEY', apiSecret: 'YOUR_API_SECRET' },
+  workspaceId: 'YOUR_WORKSPACE_ID'
+})
+
+// Ed25519 (public-key based) — the private key never leaves your process
+const sdk = new FystackSDK({
+  credentials: {
+    apiKey: 'YOUR_API_KEY',
+    privateKey: '-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----'
+  },
+  workspaceId: 'YOUR_WORKSPACE_ID'
+})
+```
+
+See [docs/api-key-signing.md](docs/api-key-signing.md) for the full signing
+contract and how to create an Ed25519-based API key.
+
 ## Create Wallet
 
 Fystack supports two wallet types:
