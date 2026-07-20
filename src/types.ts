@@ -27,7 +27,12 @@ export class TransactionError extends Error {
 
 export interface APICredentials {
   apiKey: string
-  apiSecret: string
+
+  // HMAC-SHA256 scheme
+  apiSecret?: string
+
+  // Ed25519 scheme — PEM PKCS8 private key
+  privateKey?: string
 
   // Optional
   authToken?: string

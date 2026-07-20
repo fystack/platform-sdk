@@ -2,16 +2,33 @@ import CryptoJS from 'crypto-js'
 import crypto from 'crypto'
 import { WebhookEvent } from './types'
 
+export function buildCanonicalString(params: Record<string, string>): string {
+  return Object.entries(params)
+    .map(([key, value]) => `${key}=${value}`)
+    .join('&')
+}
+
 export async function computeHMAC(
   apiSecret: string,
   params: Record<string, string>
 ): Promise<string> {
-  const encodedParams = Object.entries(params)
-    .map(([key, value]) => `${key}=${value}`)
-    .join('&')
+  const encodedParams = buildCanonicalString(params)
 
   const digest = CryptoJS.HmacSHA256(encodedParams, apiSecret)
   return digest.toString(CryptoJS.enc.Hex)
+}
+
+/**
+ * Signs a canonical request string with an Ed25519 private key.
+ *
+ * @param privateKeyPem - The Ed25519 private key in PEM PKCS8 format.
+ * @param canonicalString - The canonical string to sign (method/path/timestamp/body).
+ * @returns The base64-encoded raw signature (ACCESS-SIGN header value).
+ */
+export function signEd25519Request(privateKeyPem: string, canonicalString: string): string {
+  const privateKey = crypto.createPrivateKey(privateKeyPem)
+  const signature = crypto.sign(null, Buffer.from(canonicalString), privateKey)
+  return signature.toString('base64')
 }
 
 export async function computeHMACForWebhook(
