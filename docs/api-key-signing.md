@@ -16,16 +16,80 @@ you. Just pass the right credential shape:
 new FystackSDK({ credentials: { apiKey: '...', apiSecret: '...' } })
 
 // Ed25519 scheme — PEM PKCS8 private key, matches the public_key registered on the API key
-new FystackSDK({ credentials: { apiKey: '...', privateKey: '-----BEGIN PRIVATE KEY-----\n...' } })
+import { LocalPrivateKeySigner } from '@fystack/sdk'
+new FystackSDK({
+  credentials: {
+    apiKey: '...',
+    signer: new LocalPrivateKeySigner('-----BEGIN PRIVATE KEY-----\n...')
+  }
+})
+
+// Ed25519 scheme — key held in AWS KMS, never leaves KMS.
+// `keyId` accepts a key ID, alias, or full ARN.
+import { AwsKmsSigner } from '@fystack/sdk'
+
+// Production, running on EC2/ECS/Lambda with an IAM role attached: omit
+// `credentials` from clientConfig entirely and the underlying KMSClient
+// picks up the injected role via its default credential provider chain.
+new FystackSDK({
+  credentials: {
+    apiKey: '...',
+    signer: new AwsKmsSigner({
+      keyId: 'arn:aws:kms:ap-southeast-1:123456789012:key/1234abcd-...',
+      clientConfig: { region: 'ap-southeast-1' }
+    })
+  }
+})
+
+// Local dev against LocalStack/minstack: point `endpoint` at the emulator
+// and pass any placeholder static credentials it accepts.
+new FystackSDK({
+  credentials: {
+    apiKey: '...',
+    signer: new AwsKmsSigner({
+      keyId: 'alias/signer',
+      clientConfig: {
+        region: 'ap-southeast-1',
+        endpoint: 'http://localhost:4566',
+        credentials: { accessKeyId: 'test', secretAccessKey: 'test' }
+      }
+    })
+  }
+})
+
+// Or bring your own pre-configured client (e.g. one built with
+// `fromTemporaryCredentials`/`AssumeRoleCommand`, or shared/reused
+// elsewhere in your app) via the `client` option instead of `clientConfig`:
+import { KMSClient } from '@aws-sdk/client-kms'
+new FystackSDK({
+  credentials: {
+    apiKey: '...',
+    signer: new AwsKmsSigner({
+      keyId: 'alias/signer',
+      client: new KMSClient({ region: 'ap-southeast-1' })
+    })
+  }
+})
 ```
 
+`AwsKmsSignerOptions` (`src/requestSigner.ts`):
+
+| Option         | Required | Notes                                                                                          |
+| -------------- | -------- | ------------------------------------------------------------------------------------------------ |
+| `keyId`        | yes      | Key ID, alias (`alias/...`), or full ARN.                                                        |
+| `client`       | no*      | A pre-configured `KMSClient`-like instance. Provide this **or** `clientConfig`, not both.         |
+| `clientConfig` | no*      | Passed to `new KMSClient(...)`. Lazily requires `@aws-sdk/client-kms`. Omit `credentials` here to fall back to the default provider chain (IAM role injection); set `endpoint` + static `credentials` for LocalStack/minstack. |
+
+\* If neither is given, `KMSClient` is constructed with `{}`, relying entirely on ambient AWS config/environment.
+
 Implementation: `computeHMAC` / `signEd25519Request` in
-`src/utils.ts` build and sign the canonical string; `composeAPIHeaders` in
-`src/api.ts` picks a scheme based on which credential field is set
-(`privateKey` → Ed25519, `apiSecret` → HMAC) and attaches the
-`ACCESS-API-KEY` / `ACCESS-TIMESTAMP` / `ACCESS-SIGN` headers. The rest of
-this document describes that wire protocol in full, for non-SDK integrators
-and for reference.
+`src/utils.ts` build and sign the canonical string; `LocalPrivateKeySigner`
+and `AwsKmsSigner` in `src/requestSigner.ts` implement the `RequestSigner`
+interface used for Ed25519 signing; `composeAPIHeaders` in `src/api.ts`
+picks a scheme based on which credential field is set (`signer` → Ed25519,
+`apiSecret` → HMAC) and attaches the `ACCESS-API-KEY` / `ACCESS-TIMESTAMP` /
+`ACCESS-SIGN` headers. The rest of this document describes that wire
+protocol in full, for non-SDK integrators and for reference.
 
 ## Headers
 
@@ -98,7 +162,8 @@ Used when the API key was created with a `public_key` (PEM, PKIX,
 `-----BEGIN PUBLIC KEY-----`). The corresponding private key never leaves
 the client — only the public key is registered with Apex.
 
-In the SDK, pass this private key (PEM PKCS8 format) as `privateKey` on
+In the SDK, wrap this private key (PEM PKCS8 format) in a `LocalPrivateKeySigner`
+(or use `AwsKmsSigner` to keep the key in KMS) and pass it as `signer` on
 `APICredentials` — see [Using this from the SDK](#using-this-from-the-sdk).
 
 **Signing steps:**

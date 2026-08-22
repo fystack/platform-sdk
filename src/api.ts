@@ -1,6 +1,6 @@
 import fetch from 'cross-fetch'
 import { APIConfig, Environment, createAPI } from './config'
-import { computeHMAC, computeHMACForWebhook, buildCanonicalString, signEd25519Request } from './utils'
+import { computeHMAC, computeHMACForWebhook, buildCanonicalString } from './utils'
 import {
   APICredentials,
   WebhookEvent,
@@ -80,7 +80,7 @@ async function composeAPIHeaders(
   headers?: Record<string, string>
 ): Promise<Record<string, string>> {
   const hasSecret = credentials.apiSecret && credentials.apiSecret !== ''
-  if (!credentials.privateKey && !hasSecret) {
+  if (!credentials.signer && !hasSecret) {
     // Neither Ed25519 nor HMAC credentials provided, use authToken
     if (credentials.authToken) {
       return {
@@ -101,8 +101,8 @@ async function composeAPIHeaders(
     body: Object.keys(body).length ? JSON.stringify(body) : ''
   }
 
-  const accessSign = credentials.privateKey
-    ? signEd25519Request(credentials.privateKey, buildCanonicalString(params as Record<string, any>))
+  const accessSign = credentials.signer
+    ? await credentials.signer.sign(buildCanonicalString(params as Record<string, any>))
     : btoa(await computeHMAC(credentials.apiSecret!, params as Record<string, any>))
 
   const combinedHeaders = {

@@ -18,9 +18,18 @@
   "author": "anhthii",
   "license": "ISC",
   "devDependencies": {
+    "@aws-sdk/client-kms": "^3.1097.0",
     "@types/crypto-js": "^4.2.2",
     "bunchee": "^4.4.8",
     "vitest": "^1.2.2"
+  },
+  "peerDependencies": {
+    "@aws-sdk/client-kms": "^3.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@aws-sdk/client-kms": {
+      "optional": true
+    }
   },
   "dependencies": {
     "@solana/web3.js": "^1.98.0",

@@ -1,4 +1,5 @@
 import { SweepTaskParams } from './api'
+import { RequestSigner } from './requestSigner'
 import {
   DestinationType,
   ReserveType,
@@ -31,8 +32,9 @@ export interface APICredentials {
   // HMAC-SHA256 scheme
   apiSecret?: string
 
-  // Ed25519 scheme — PEM PKCS8 private key
-  privateKey?: string
+  // Ed25519 scheme — signs the canonical request string.
+  // Use LocalPrivateKeySigner for an in-process PEM key, or AwsKmsSigner for AWS KMS.
+  signer?: RequestSigner
 
   // Optional
   authToken?: string
