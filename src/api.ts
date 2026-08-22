@@ -1,6 +1,6 @@
 import fetch from 'cross-fetch'
 import { APIConfig, Environment, createAPI } from './config'
-import { computeHMAC, computeHMACForWebhook } from './utils'
+import { computeHMAC, computeHMACForWebhook, buildCanonicalString } from './utils'
 import {
   APICredentials,
   WebhookEvent,
@@ -79,8 +79,9 @@ async function composeAPIHeaders(
   body: Record<string, any> = {},
   headers?: Record<string, string>
 ): Promise<Record<string, string>> {
-  if (!credentials.apiSecret || credentials.apiSecret === '') {
-    // If APISecret is not provided, use authToken
+  const hasSecret = credentials.apiSecret && credentials.apiSecret !== ''
+  if (!credentials.signer && !hasSecret) {
+    // Neither Ed25519 nor HMAC credentials provided, use authToken
     if (credentials.authToken) {
       return {
         Authorization: credentials.authToken
@@ -100,12 +101,14 @@ async function composeAPIHeaders(
     body: Object.keys(body).length ? JSON.stringify(body) : ''
   }
 
-  const digest = await computeHMAC(credentials.apiSecret, params as Record<string, any>)
+  const accessSign = credentials.signer
+    ? await credentials.signer.sign(buildCanonicalString(params as Record<string, any>))
+    : btoa(await computeHMAC(credentials.apiSecret!, params as Record<string, any>))
 
   const combinedHeaders = {
     'ACCESS-API-KEY': credentials.apiKey,
     'ACCESS-TIMESTAMP': String(currentTimestampInSeconds),
-    'ACCESS-SIGN': btoa(digest), // convert to base64
+    'ACCESS-SIGN': accessSign,
     ...(headers ?? {})
   }
 
@@ -343,6 +346,9 @@ export class WebhookService {
 
   // Implement verify webhook here
   async verifyEvent(event: WebhookEvent, signature: string): Promise<boolean> {
+    if (!this.credentials.apiSecret) {
+      throw new Error('apiSecret is required to verify webhook events')
+    }
     // Recompute HMAC
     const computedHMAC = await computeHMACForWebhook(this.credentials.apiSecret, event)
     const isValid = signature === computedHMAC

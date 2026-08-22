@@ -45,6 +45,72 @@ const sdk = new FystackSDK({
 
 > When `domain` is provided, it takes priority over `environment`. The SDK will connect to `https://<domain>/api/v1`.
 
+### Authentication schemes
+
+The SDK signs every API request for you — you never need to build the
+canonical string or compute a signature by hand. Pick whichever scheme your
+API key was created with:
+
+```typescript
+// HMAC-SHA256 (secret-based) — the default
+const sdk = new FystackSDK({
+  credentials: { apiKey: 'YOUR_API_KEY', apiSecret: 'YOUR_API_SECRET' },
+  workspaceId: 'YOUR_WORKSPACE_ID'
+})
+
+// Ed25519 (public-key based) — sign with a local PEM key...
+import { LocalPrivateKeySigner } from '@fystack/sdk'
+
+const sdk = new FystackSDK({
+  credentials: {
+    apiKey: 'YOUR_API_KEY',
+    signer: new LocalPrivateKeySigner(
+      '-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----'
+    )
+  },
+  workspaceId: 'YOUR_WORKSPACE_ID'
+})
+
+// ...or with AWS KMS — the private key never leaves KMS.
+// `keyId` accepts a key ID, alias (e.g. 'alias/signer'), or full ARN.
+import { AwsKmsSigner } from '@fystack/sdk'
+
+// On EC2/ECS/Lambda with an IAM role attached, just set the region —
+// credentials are picked up from the injected role automatically.
+const sdk = new FystackSDK({
+  credentials: {
+    apiKey: 'YOUR_API_KEY',
+    signer: new AwsKmsSigner({
+      keyId: 'alias/signer',
+      clientConfig: { region: 'ap-southeast-1' }
+    })
+  },
+  workspaceId: 'YOUR_WORKSPACE_ID'
+})
+
+// Local dev against LocalStack/minstack: override `endpoint` and pass
+// placeholder static credentials.
+const sdkLocal = new FystackSDK({
+  credentials: {
+    apiKey: 'YOUR_API_KEY',
+    signer: new AwsKmsSigner({
+      keyId: 'alias/signer',
+      clientConfig: {
+        region: 'ap-southeast-1',
+        endpoint: 'http://localhost:4566',
+        credentials: { accessKeyId: 'test', secretAccessKey: 'test' }
+      }
+    })
+  },
+  workspaceId: 'YOUR_WORKSPACE_ID'
+})
+```
+
+See [docs/api-key-signing.md](docs/api-key-signing.md#using-this-from-the-sdk)
+for the full `AwsKmsSignerOptions` reference (including passing a
+pre-configured `KMSClient` via the `client` option), the full signing
+contract, and how to create an Ed25519-based API key.
+
 ## Create Wallet
 
 Fystack supports two wallet types:

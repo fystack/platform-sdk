@@ -1,5 +1,6 @@
 export * from './sdk'
 export * from './signer'
+export * from './requestSigner'
 export * from './solanaSigner'
 export * from './api'
 export * from './types'

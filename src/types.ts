@@ -1,4 +1,5 @@
 import { SweepTaskParams } from './api'
+import { RequestSigner } from './requestSigner'
 import {
   DestinationType,
   ReserveType,
@@ -27,7 +28,13 @@ export class TransactionError extends Error {
 
 export interface APICredentials {
   apiKey: string
-  apiSecret: string
+
+  // HMAC-SHA256 scheme
+  apiSecret?: string
+
+  // Ed25519 scheme — signs the canonical request string.
+  // Use LocalPrivateKeySigner for an in-process PEM key, or AwsKmsSigner for AWS KMS.
+  signer?: RequestSigner
 
   // Optional
   authToken?: string
