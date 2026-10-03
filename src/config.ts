@@ -32,7 +32,7 @@ const getBaseURL = (env: Environment): string => {
     case Environment.Local:
       return 'http://localhost:8150'
     case Environment.Sandbox:
-      return 'https://api-dev.fystack.io'
+      return 'https://api.enterprise-sandbox.fystack.io'
     case Environment.Production:
       return 'https://api.fystack.io'
   }
