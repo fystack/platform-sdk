@@ -105,7 +105,15 @@ export class EtherSigner extends AbstractSigner {
   }
 
   connect(provider: null | Provider): EtherSigner {
-    return new EtherSigner(this.APICredentials, this.environment, provider)
+    const signer = new EtherSigner(
+      this.APICredentials,
+      this.environment,
+      provider,
+      this.pollerOptions
+    )
+    signer.walletDetail = this.walletDetail
+    signer.address = this.address
+    return signer
   }
 
   private async waitForSignature(walletId: string, transactionId: string): Promise<string> {
