@@ -1,5 +1,10 @@
 import { APIService, WalletDetail } from './api'
-import { APICredentials, TransactionStatusResponse, TransactionError } from './types'
+import {
+  APICredentials,
+  RequestOptions,
+  TransactionStatusResponse,
+  TransactionError
+} from './types'
 import { Environment } from './config'
 import { StatusPoller, StatusPollerOptions } from './utils/statusPoller'
 import { Transaction, PublicKey, VersionedTransaction } from '@solana/web3.js'
@@ -7,6 +12,13 @@ import bs58 from 'bs58'
 import { Buffer } from 'buffer'
 import { AddressType, TxStatus } from './enum'
 
+/**
+ * Signs Solana transactions and messages with a Fystack wallet.
+ *
+ * Current Apex deployments reject Solana raw transactions on signRaw and do not
+ * accept solana_signMessage on the sign endpoint. This signer is kept for
+ * deployments that enable the legacy contract; use wallet withdrawals otherwise.
+ */
 export class SolanaSigner {
   private address!: string
   private APIService: APIService
@@ -18,11 +30,12 @@ export class SolanaSigner {
   constructor(
     credentials: APICredentials,
     environment: Environment,
-    pollerOptions?: StatusPollerOptions
+    pollerOptions?: StatusPollerOptions,
+    domain?: string
   ) {
     this.APICredentials = credentials
     this.APIKey = credentials.apiKey
-    this.APIService = new APIService(credentials, environment)
+    this.APIService = new APIService(credentials, environment, domain)
     this.pollerOptions = pollerOptions
   }
 
@@ -79,10 +92,7 @@ export class SolanaSigner {
     // Poll for transaction status using signaturePoller
     const result = await poller.poll<TransactionStatusResponse>(
       // Polling function
-      () => {
-        console.log('Polling status')
-        return this.APIService.getTransactionStatus(this.walletDetail.WalletID, transactionId)
-      },
+      () => this.APIService.getTransactionStatus(this.walletDetail.WalletID, transactionId),
       // Success condition
       (result) =>
         (result.status === TxStatus.Confirmed || result.status === TxStatus.Completed) &&
@@ -96,10 +106,16 @@ export class SolanaSigner {
             result.transaction_id
           )
         }
-        return result.status === TxStatus.Rejected
+        if (result.status === TxStatus.Rejected) {
+          throw new TransactionError(
+            'Transaction rejected',
+            'TRANSACTION_REJECTED',
+            result.transaction_id
+          )
+        }
+        return false
       }
     )
-    console.log('result', result)
 
     if (!result.hash) {
       throw new TransactionError(
@@ -117,10 +133,7 @@ export class SolanaSigner {
    * @param transaction Base64 encoded serialized transaction
    * @returns Signature as a base58 encoded string
    */
-  async signTransaction(
-    transaction: string,
-    options?: { idempotencyKey?: string }
-  ): Promise<string> {
+  async signTransaction(transaction: string, options?: RequestOptions): Promise<string> {
     if (!this.address) {
       await this.getAddress()
     }
@@ -152,10 +165,7 @@ export class SolanaSigner {
    * @param message The message to sign (string or Uint8Array)
    * @returns Signature as a base58 encoded string
    */
-  async signMessage(
-    message: string | Uint8Array,
-    options?: { idempotencyKey?: string }
-  ): Promise<string> {
+  async signMessage(message: string | Uint8Array, options?: RequestOptions): Promise<string> {
     if (!this.address) {
       await this.getAddress()
     }
@@ -181,10 +191,7 @@ export class SolanaSigner {
    * @param transaction Base64 encoded serialized transaction
    * @returns Transaction signature
    */
-  async signAndSendTransaction(
-    transaction: string,
-    options?: { idempotencyKey?: string }
-  ): Promise<string> {
+  async signAndSendTransaction(transaction: string, options?: RequestOptions): Promise<string> {
     if (!this.address) {
       await this.getAddress()
     }
@@ -200,21 +207,24 @@ export class SolanaSigner {
       data,
       options
     )
-    const txHash = await this.waitForTransactionStatus(response.transaction_id)
-    console.log('transaction succeed!')
-
-    return txHash
+    return this.waitForTransactionStatus(response.transaction_id)
   }
 
   /**
    * Signs multiple Solana transactions
    * @param transactions Array of base64 encoded serialized transactions
-   * @returns Array of signatures as base58 encoded strings
+   * @param options An idempotency key is allowed only for a single transaction,
+   *   because Apex would replay the first response for every later request with the same key
+   * @returns Array of signed base64 encoded transactions
    */
   async signAllTransactions(
     transactions: string[],
-    options?: { idempotencyKey?: string }
+    options?: RequestOptions
   ): Promise<{ transactions: string[] }> {
+    if (options?.idempotencyKey && transactions.length > 1) {
+      throw new Error('idempotencyKey cannot be shared by multiple transactions')
+    }
+
     if (!this.address) {
       await this.getAddress()
     }
@@ -257,9 +267,17 @@ export class SolanaSigner {
         // Deserialize as a versioned transaction
         const versionedTx = VersionedTransaction.deserialize(transactionBuffer)
 
-        // Add the signature (convert from base58)
+        // Add the signature (convert from base58) at this wallet's signer index
         const signatureBuffer = bs58.decode(signature)
-        versionedTx.signatures[0] = Buffer.from(signatureBuffer)
+        const signerKeys = versionedTx.message.staticAccountKeys.slice(
+          0,
+          versionedTx.message.header.numRequiredSignatures
+        )
+        const signerIndex = signerKeys.findIndex((key) => key.equals(new PublicKey(this.address)))
+        if (signerIndex < 0) {
+          throw new Error('Wallet is not a required signer of the transaction')
+        }
+        versionedTx.signatures[signerIndex] = Buffer.from(signatureBuffer)
 
         // Serialize and encode back to base64
         return Buffer.from(versionedTx.serialize()).toString('base64')

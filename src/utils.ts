@@ -31,18 +31,49 @@ export function signEd25519Request(privateKeyPem: string, canonicalString: strin
   return signature.toString('base64')
 }
 
+/**
+ * JSON.stringify that encodes bigint values as decimal strings, the format the
+ * API expects for integer quantities.
+ */
+export function stringifyJSON(value: unknown): string {
+  return JSON.stringify(value, (_key, v) => (typeof v === 'bigint' ? v.toString() : v))
+}
+
+/**
+ * Counts Unicode code points, which is how the API measures string length limits.
+ */
+export function characterLength(value: string): number {
+  return [...value].length
+}
+
 export async function computeHMACForWebhook(
   apiSecret: string,
   event: WebhookEvent
 ): Promise<string> {
   const eventStr = canonicalizeJSON(event)
-  console.log('eventStr', eventStr)
   const digest = CryptoJS.HmacSHA256(eventStr, apiSecret)
   return digest.toString(CryptoJS.enc.Hex)
 }
 
 /**
- * Canonicalizes a TypeScript object by sorting its keys recursively.
+ * Verifies a hex-encoded HMAC-SHA256 webhook signature in constant time.
+ */
+export async function verifyHMACForWebhook(
+  apiSecret: string,
+  event: WebhookEvent,
+  signatureHex: string
+): Promise<boolean> {
+  if (!/^[0-9a-f]*$/i.test(signatureHex) || signatureHex.length % 2 !== 0) {
+    return false
+  }
+  const expected = Buffer.from(await computeHMACForWebhook(apiSecret, event), 'hex')
+  const actual = Buffer.from(signatureHex, 'hex')
+  return expected.length === actual.length && crypto.timingSafeEqual(expected, actual)
+}
+
+/**
+ * Canonicalizes a TypeScript object by sorting its keys recursively. For values
+ * parsed from JSON this matches RFC 8785 (JCS), the form Apex signs webhooks over.
  *
  * @param inputObject - The input object to canonicalize.
  * @returns A canonicalized JSON string with sorted keys.
@@ -103,15 +134,9 @@ export function isValidUUID(uuid: string): boolean {
 }
 
 /**
- * Validates if a string is a valid UUID and throws an error if not
- * @param uuid The string to validate
- * @param paramName The name of the parameter being validated (for error message)
- * @throws Error if the UUID is invalid
- */
-/**
  * Verifies an Ed25519 signature against a webhook event.
  *
- * @param publicKeyHex - The Ed25519 public key as a hex string.
+ * @param publicKeyHex - The Ed25519 public key as a hex string, as returned by getWebhookPublicKey.
  * @param event - The webhook event object to verify.
  * @param signatureHex - The Ed25519 signature as a hex string.
  * @returns true if the signature is valid, false otherwise.
@@ -134,6 +159,12 @@ export function verifyEd25519(
   return crypto.verify(null, Buffer.from(message), publicKey, Buffer.from(signatureHex, 'hex'))
 }
 
+/**
+ * Validates if a string is a valid UUID and throws an error if not
+ * @param uuid The string to validate
+ * @param paramName The name of the parameter being validated (for error message)
+ * @throws Error if the UUID is invalid
+ */
 export function validateUUID(uuid: string, paramName: string): void {
   if (!uuid || typeof uuid !== 'string') {
     throw new Error(`${paramName} is required and must be a string`)

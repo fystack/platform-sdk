@@ -2,6 +2,7 @@ import { SweepTaskParams } from './api'
 import { RequestSigner } from './requestSigner'
 import {
   DestinationType,
+  FeePriority,
   ReserveType,
   SweepStrategy,
   SweepType,
@@ -24,6 +25,27 @@ export class TransactionError extends Error {
     super(message)
     this.name = 'TransactionError'
   }
+}
+
+/**
+ * Returned for an unsuccessful API response.
+ */
+export class APIError extends Error {
+  constructor(
+    message: string,
+    public readonly statusCode: number
+  ) {
+    super(message)
+    this.name = 'APIError'
+  }
+}
+
+export interface RequestOptions {
+  /**
+   * Sent as `X-Idempotency-Key`. Apex requires a UUID and replays the first
+   * successful response for that key for 24 hours.
+   */
+  idempotencyKey?: string
 }
 
 export interface APICredentials {
@@ -88,11 +110,18 @@ export interface TransactionStatusResponse {
 }
 
 export interface CreateWalletOptions {
+  /** 1 to 100 characters */
   name: string
-  walletType: WalletType
+  /** Defaults to WalletType.Hyper */
+  walletType?: WalletType
+  /** Apex accepts general, user, gas_tank, payment and one_time_use on create */
   walletPurpose?: WalletPurpose
   sweepTaskParams?: SweepTaskParams
   sweepTaskId?: string
+  /** Network UUIDs to enable on the wallet */
+  networkIds?: string[]
+  gasSponsorshipEnabled?: boolean
+  approvalGroupId?: string
 }
 
 export interface CreateWalletResponse {
@@ -193,6 +222,9 @@ export interface RequestWithdrawalParams {
   recipientAddress: string
   notes?: string
   skipBalanceCheck?: boolean
+  /** Transaction category UUIDs */
+  categoryIds?: string[]
+  feePriority?: FeePriority
 }
 
 export interface WithdrawalApproval {
@@ -244,7 +276,7 @@ export interface RequestWithdrawalResponse {
 }
 
 export interface WebhookPublicKeyResponse {
-  public_key: string // base64 encoded ed25519 public key
+  public_key: string // hex encoded ed25519 public key; pass it to verifyEd25519
 }
 
 export interface CreateSweepTaskParams {

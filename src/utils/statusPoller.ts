@@ -11,7 +11,7 @@ export const DEFAULT_POLLER_OPTIONS: StatusPollerOptions = {
   interval: 1000, // Start with 1 second
   backoffFactor: 1.5, // Increase interval by 50% each time
   maxInterval: 10000, // Max 10 seconds between attempts
-  timeoutMs: 10 * 60 * 1000 // 10 minutes totla
+  timeoutMs: 10 * 60 * 1000 // 10 minutes total
 }
 
 export class StatusPoller {
@@ -21,7 +21,11 @@ export class StatusPoller {
   private readonly options: Required<StatusPollerOptions>
 
   constructor(options: StatusPollerOptions = {}) {
-    this.options = { ...DEFAULT_POLLER_OPTIONS, ...options } as Required<StatusPollerOptions>
+    // Ignore undefined values so they do not override the defaults
+    const defined = Object.fromEntries(
+      Object.entries(options).filter(([, value]) => value !== undefined)
+    )
+    this.options = { ...DEFAULT_POLLER_OPTIONS, ...defined } as Required<StatusPollerOptions>
     this.startTime = Date.now()
     this.attempts = 0
     this.currentInterval = this.options.interval
@@ -73,10 +77,14 @@ export class StatusPoller {
         return result
       }
 
+      if (this.attempts >= this.options.maxAttempts) {
+        break
+      }
+
       // If neither condition is met, wait and continue polling
       await this.wait()
     }
 
-    throw new Error('Polling ended without meeting success condition')
+    throw new Error(`Maximum polling attempts (${this.options.maxAttempts}) exceeded`)
   }
 }

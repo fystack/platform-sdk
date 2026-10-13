@@ -16,10 +16,16 @@ import {
 } from 'ethers'
 import { TransactionRequest } from 'ethers/src.ts/providers'
 import { APIService, WalletDetail } from './api'
-import { APICredentials, TransactionStatusResponse, TransactionError } from './types'
+import {
+  APICredentials,
+  RequestOptions,
+  TransactionStatusResponse,
+  TransactionError
+} from './types'
 import { Environment } from './config'
 import { StatusPoller, StatusPollerOptions } from './utils/statusPoller'
 import { AddressType, TxStatus } from './enum'
+import { stringifyJSON } from './utils'
 
 export class EtherSigner extends AbstractSigner {
   private address!: string
@@ -28,19 +34,22 @@ export class EtherSigner extends AbstractSigner {
   private walletDetail: WalletDetail
   private environment: Environment
   private pollerOptions?: StatusPollerOptions
+  private domain?: string
 
   constructor(
     credentials: APICredentials,
     environment: Environment,
     provider?: null | Provider,
-    pollerOptions?: StatusPollerOptions
+    pollerOptions?: StatusPollerOptions,
+    domain?: string
   ) {
     super(provider)
 
     this.APICredentials = credentials
-    this.APIService = new APIService(credentials, environment)
+    this.APIService = new APIService(credentials, environment, domain)
     this.environment = environment
     this.pollerOptions = pollerOptions
+    this.domain = domain
   }
 
   setWallet(walletId: string): void {
@@ -109,7 +118,8 @@ export class EtherSigner extends AbstractSigner {
       this.APICredentials,
       this.environment,
       provider,
-      this.pollerOptions
+      this.pollerOptions,
+      this.domain
     )
     signer.walletDetail = this.walletDetail
     signer.address = this.address
@@ -124,7 +134,16 @@ export class EtherSigner extends AbstractSigner {
       // Success condition
       (result) => result.status === TxStatus.Confirmed && result.signature != null,
       // Error condition
-      (result) => [TxStatus.Failed, TxStatus.Rejected].includes(result.status)
+      (result) => {
+        if (result.status === TxStatus.Failed || result.status === TxStatus.Rejected) {
+          throw new TransactionError(
+            'Signature request failed',
+            'SIGNATURE_FAILED',
+            result.transaction_id
+          )
+        }
+        return false
+      }
     )
 
     if (!status.signature) {
@@ -139,10 +158,7 @@ export class EtherSigner extends AbstractSigner {
     // Poll for transaction status using signaturePoller
     const result = await poller.poll<TransactionStatusResponse>(
       // Polling function
-      () => {
-        console.log('Polling status')
-        return this.APIService.getTransactionStatus(this.walletDetail.WalletID, transactionId)
-      },
+      () => this.APIService.getTransactionStatus(this.walletDetail.WalletID, transactionId),
       // Success condition
       (result) =>
         (result.status === TxStatus.Confirmed || result.status === TxStatus.Completed) &&
@@ -156,10 +172,16 @@ export class EtherSigner extends AbstractSigner {
             result.transaction_id
           )
         }
-        return result.status === TxStatus.Rejected
+        if (result.status === TxStatus.Rejected) {
+          throw new TransactionError(
+            'Transaction rejected',
+            'TRANSACTION_REJECTED',
+            result.transaction_id
+          )
+        }
+        return false
       }
     )
-    console.log('result', result)
 
     if (!result.hash) {
       throw new TransactionError(
@@ -173,13 +195,7 @@ export class EtherSigner extends AbstractSigner {
   }
 
   // Copied and editted from ethers.js -> Wallet -> BaseWallet
-  async signTransaction(
-    tx: TransactionRequest,
-    options?: { idempotencyKey?: string }
-  ): Promise<string> {
-    const startTime = new Date()
-    console.log(`[WalletSDK] Transaction started at: ${startTime.toLocaleString()}`)
-
+  async signTransaction(tx: TransactionRequest, options?: RequestOptions): Promise<string> {
     if (!this.address) {
       await this.getAddress()
     }
@@ -214,6 +230,15 @@ export class EtherSigner extends AbstractSigner {
     const fromAddress = this.address
     // Build the transaction
     const btx = Transaction.from(<TransactionLike<string>>tx)
+    if (!btx.chainId) {
+      throw new Error('Transaction chainId is required')
+    }
+    // Apex builds EIP-1559 transactions only and ignores gasPrice
+    if (btx.maxFeePerGas == null || btx.maxPriorityFeePerGas == null) {
+      throw new Error(
+        'maxFeePerGas and maxPriorityFeePerGas are required: legacy gasPrice transactions are not supported'
+      )
+    }
     const data = {
       maxFeePerGas: btx.maxFeePerGas,
       maxPriorityFeePerGas: btx.maxPriorityFeePerGas,
@@ -232,26 +257,13 @@ export class EtherSigner extends AbstractSigner {
       data,
       options
     )
-    const txHash = await this.waitForTransactonStatus(response.transaction_id)
-
-    const endTime = new Date()
-    const elapsedTimeMs = endTime.getTime() - startTime.getTime()
-    console.log(`[WalletSDK] Transaction completed at: ${endTime.toLocaleString()}`)
-    console.log(
-      `[WalletSDK] Transaction took ${elapsedTimeMs}ms (${(elapsedTimeMs / 1000).toFixed(2)}s)`
-    )
-    console.log('[WalletSDK] Transaction succeed!')
-
-    return txHash
+    return this.waitForTransactonStatus(response.transaction_id)
   }
 
   async sendTransaction(
     tx: TransactionRequest,
-    options?: { idempotencyKey?: string }
+    options?: RequestOptions
   ): Promise<TransactionResponse> {
-    const startTime = new Date()
-    console.log(`[WalletSDK] sendTransaction started at: ${startTime.toLocaleString()}`)
-
     if (!this.address) {
       await this.getAddress()
     }
@@ -262,24 +274,12 @@ export class EtherSigner extends AbstractSigner {
 
     checkProvider(this, 'sendTransaction')
 
-    // Only populate if gas fees are not set
-    const hasGasFees =
-      tx.gasPrice != null || (tx.maxFeePerGas != null && tx.maxPriorityFeePerGas != null)
+    // Only populate if EIP-1559 gas fees are not set
+    const hasGasFees = tx.maxFeePerGas != null && tx.maxPriorityFeePerGas != null
 
     let populatedTx = tx
     if (!hasGasFees) {
-      const populateStartTime = new Date()
-      console.log(
-        `[WalletSDK] populateTransaction started at: ${populateStartTime.toLocaleString()}`
-      )
       populatedTx = await this.populateTransaction(tx)
-      const populateEndTime = new Date()
-      const populateElapsedMs = populateEndTime.getTime() - populateStartTime.getTime()
-      console.log(
-        `[WalletSDK] populateTransaction completed in ${(populateElapsedMs / 1000).toFixed(2)}s`
-      )
-    } else {
-      console.log(`[WalletSDK] Skipping transaction population as gas fees are already set`)
     }
 
     delete populatedTx.from
@@ -288,16 +288,7 @@ export class EtherSigner extends AbstractSigner {
     const resolvedTx = (await resolveProperties(populatedTx)) as TransactionLike<string>
     const txObj = Transaction.from(resolvedTx)
 
-    console.log('[WalletSDK] Tx Data', txObj)
-
     const txHash = await this.signTransaction(txObj, options)
-
-    // Instead of creating a mock response, get the actual transaction from the provider
-    const endTime = new Date()
-    const totalElapsedMs = endTime.getTime() - startTime.getTime()
-    console.log(`[WalletSDK] sendTransaction completed at: ${endTime.toLocaleString()}`)
-    console.log(`[WalletSDK] sendTransaction took ${(totalElapsedMs / 1000).toFixed(2)}s`)
-    console.log('[WalletSDK] Transaction sent successfully!')
 
     const txResponse: TransactionResponseParams = {
       blockNumber: 0, // Default to 0 as this is an async transaction
@@ -359,10 +350,7 @@ export class EtherSigner extends AbstractSigner {
     return new TransactionResponse(txResponse, this.provider as Provider)
   }
 
-  async signMessage(
-    message: string | Uint8Array,
-    options?: { idempotencyKey?: string }
-  ): Promise<string> {
+  async signMessage(message: string | Uint8Array, options?: RequestOptions): Promise<string> {
     if (!this.provider) {
       throw new Error('Provider is required for signing operations')
     }
@@ -395,7 +383,7 @@ export class EtherSigner extends AbstractSigner {
     domain: TypedDataDomain,
     types: Record<string, Array<TypedDataField>>,
     value: Record<string, any>,
-    options?: { idempotencyKey?: string }
+    options?: RequestOptions
   ): Promise<string> {
     if (!this.provider) {
       throw new Error('Provider is required for signing operations')
@@ -410,7 +398,7 @@ export class EtherSigner extends AbstractSigner {
     }
 
     const chainId = await this.getChainId()
-    const typedData = JSON.stringify({
+    const typedData = stringifyJSON({
       domain,
       types,
       message: value
