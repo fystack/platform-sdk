@@ -22,8 +22,24 @@ export enum WalletCreationStatus {
 
 export enum AddressType {
   Evm = 'evm',
+  Bitcoin = 'btc',
   Solana = 'sol',
   Tron = 'tron'
+}
+
+export enum AddressStandard {
+  BitcoinP2PKH = 'btc_p2pkh',
+  BitcoinP2SH = 'btc_p2sh',
+  BitcoinBech32 = 'btc_bech32',
+  BitcoinP2PKHTestnet = 'btc_p2pkh_testnet',
+  BitcoinP2SHTestnet = 'btc_p2sh_testnet',
+  BitcoinBech32Testnet = 'btc_bech32_testnet'
+}
+
+export enum FeePriority {
+  Low = 'low',
+  Standard = 'standard',
+  Fast = 'fast'
 }
 
 export enum DestinationType {
@@ -33,6 +49,7 @@ export enum DestinationType {
 
 export enum TxStatus {
   Pending = 'pending',
+  Broadcasting = 'broadcasting',
   Completed = 'completed',
   Confirmed = 'confirmed',
   Failed = 'failed',

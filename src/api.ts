@@ -1,8 +1,10 @@
 import fetch from 'cross-fetch'
 import { APIConfig, Environment, createAPI } from './config'
-import { computeHMAC, computeHMACForWebhook, buildCanonicalString } from './utils'
+import { computeHMAC, verifyHMACForWebhook, buildCanonicalString, stringifyJSON } from './utils'
 import {
+  APIError,
   APICredentials,
+  RequestOptions,
   WebhookEvent,
   SignRequestParams,
   SignResponse,
@@ -64,6 +66,9 @@ export interface CreateWalletPayload {
   walletPurpose?: WalletPurpose
   sweepTaskParams?: SweepTaskParams
   sweepTaskId?: string
+  networkIds?: string[]
+  gasSponsorshipEnabled?: boolean
+  approvalGroupId?: string
 }
 
 export interface PaymentServiceParams {
@@ -76,43 +81,48 @@ async function composeAPIHeaders(
   credentials: APICredentials,
   httpMethod: string,
   apiEndpoint: string,
-  body: Record<string, any> = {},
-  headers?: Record<string, string>
+  body: string = '',
+  options?: RequestOptions
 ): Promise<Record<string, string>> {
+  const headers: Record<string, string> = {}
+  if (options?.idempotencyKey) {
+    headers['X-Idempotency-Key'] = options.idempotencyKey
+  }
+
   const hasSecret = credentials.apiSecret && credentials.apiSecret !== ''
   if (!credentials.signer && !hasSecret) {
     // Neither Ed25519 nor HMAC credentials provided, use authToken
     if (credentials.authToken) {
-      return {
-        Authorization: credentials.authToken
-      }
+      headers.Authorization = credentials.authToken
     }
-    // fallback to cookie mode with no headers
-    return {}
+    // Otherwise fall back to cookie mode
+    return headers
+  }
+
+  if (!credentials.apiKey || credentials.apiKey.trim() === '') {
+    throw new Error('apiKey is required for signed requests')
   }
 
   const currentTimestampInSeconds = Math.floor(Date.now() / 1000)
-  const url = new URL(apiEndpoint)
-  const path = url.pathname // Extract the path
+  // Apex signs the decoded request path without the query string
+  const path = decodeURIComponent(new URL(apiEndpoint).pathname)
   const params: HMACParams = {
     method: httpMethod,
     path,
     timestamp: String(currentTimestampInSeconds),
-    body: Object.keys(body).length ? JSON.stringify(body) : ''
+    body
   }
 
   const accessSign = credentials.signer
     ? await credentials.signer.sign(buildCanonicalString(params as Record<string, any>))
     : btoa(await computeHMAC(credentials.apiSecret!, params as Record<string, any>))
 
-  const combinedHeaders = {
+  return {
+    ...headers,
     'ACCESS-API-KEY': credentials.apiKey,
     'ACCESS-TIMESTAMP': String(currentTimestampInSeconds),
-    'ACCESS-SIGN': accessSign,
-    ...(headers ?? {})
+    'ACCESS-SIGN': accessSign
   }
-
-  return combinedHeaders
 }
 
 export class APIService {
@@ -126,53 +136,60 @@ export class APIService {
     this.API = createAPI(environment, domain)
   }
 
+  // Signs exactly the body bytes it sends.
+  private async send(
+    method: 'GET' | 'POST',
+    endpoint: string,
+    body?: Record<string, any>,
+    options?: RequestOptions
+  ): Promise<APIResponse> {
+    const bodyString = body === undefined ? undefined : stringifyJSON(body)
+    const headers = await composeAPIHeaders(
+      this.credentials,
+      method,
+      endpoint,
+      bodyString ?? '',
+      options
+    )
+    return request(method, endpoint, bodyString, headers)
+  }
+
   async getWallets(workspaceId: string): Promise<WalletByWorkspaceResponse[]> {
-    const endpoint = this.API.endpoints.getWallets(workspaceId)
-    const headers = await composeAPIHeaders(this.credentials, 'GET', endpoint)
-    const response = await get(endpoint, headers)
+    const response = await this.send('GET', this.API.endpoints.getWallets(workspaceId))
     return response.data
   }
 
   async getWalletDetail(addressType = AddressType.Evm, walletId?: string): Promise<WalletDetail> {
-    const endpoint = this.API.endpoints.getWalletDetail(walletId)
-    const headers = await composeAPIHeaders(this.credentials, 'GET', endpoint)
-    console.info('headers', headers)
-    const resp = await get(endpoint + `?address_type=${addressType}`, headers)
+    const endpoint =
+      this.API.endpoints.getWalletDetail(walletId) +
+      `?address_type=${encodeURIComponent(addressType)}`
+    const resp = await this.send('GET', endpoint)
     return transformWalletDetail(resp.data)
   }
 
   async requestSign(
     walletId: string,
     params: SignRequestParams,
-    options?: Record<string, string>
+    options?: RequestOptions
   ): Promise<SignResponse> {
     const endpoint = this.API.endpoints.requestSign(walletId)
-    const headers = await composeAPIHeaders(this.credentials, 'POST', endpoint, params, options)
-    const response = await post(endpoint, params, headers)
+    const response = await this.send('POST', endpoint, params, options)
     return response.data
   }
 
   async getSignStatus(walletId: string, transactionId: string): Promise<SignatureStatusResponse> {
     const endpoint = this.API.endpoints.getSignStatus(walletId, transactionId)
-    const headers = await composeAPIHeaders(this.credentials, 'GET', endpoint)
-    const response = await get(endpoint, headers)
+    const response = await this.send('GET', endpoint)
     return response.data
   }
 
   async signTransaction(
     walletId: string,
     body: Record<string, any>,
-    options?: Record<string, string>
+    options?: RequestOptions
   ): Promise<SignResponse> {
-    const startTime = Date.now()
     const endpoint = this.API.endpoints.signTransaction(walletId)
-    const headers = await composeAPIHeaders(this.credentials, 'POST', endpoint, body, options)
-    const response = await post(endpoint, body, headers)
-    const elapsedTime = Date.now() - startTime
-
-    console.log(`[WalletSDK] Sign transaction completed in ${elapsedTime}ms`)
-    console.log('[WalletSDK] Sign transaction response:', response)
-
+    const response = await this.send('POST', endpoint, body, options)
     return response.data
   }
 
@@ -181,44 +198,38 @@ export class APIService {
     transactionId: string
   ): Promise<TransactionStatusResponse> {
     const endpoint = this.API.endpoints.getTransactionStatus(walletId, transactionId)
-    const headers = await composeAPIHeaders(this.credentials, 'GET', endpoint)
-    const response = await get(endpoint, headers)
+    const response = await this.send('GET', endpoint)
     return response.data
   }
 
   async createWallet(payload: CreateWalletPayload): Promise<CreateWalletResponse> {
     const endpoint = this.API.endpoints.createWallet()
-    const transformedPayload = transformCreateWalletPayload(payload)
-    const headers = await composeAPIHeaders(this.credentials, 'POST', endpoint, transformedPayload)
-    const resp = await post(endpoint, transformedPayload, headers)
+    const resp = await this.send('POST', endpoint, transformCreateWalletPayload(payload))
     return resp.data
   }
 
   async createCheckout(payload: CreateCheckoutPayload): Promise<CreateCheckoutResponse> {
     const endpoint = this.API.endpoints.createCheckout()
-    const headers = await composeAPIHeaders(this.credentials, 'POST', endpoint, payload)
-    const response = await post(endpoint, payload, headers)
+    const response = await this.send('POST', endpoint, payload)
     return response.data
   }
 
   async getWalletCreationStatus(walletId: string): Promise<WalletCreationStatusResponse> {
     const endpoint = this.API.endpoints.getWalletCreationStatus(walletId)
-    const headers = await composeAPIHeaders(this.credentials, 'GET', endpoint)
-    const response = await get(endpoint, headers)
+    const response = await this.send('GET', endpoint)
     return response.data
   }
 
   async getWalletAssets(walletId: string): Promise<WalletAsset[]> {
     const endpoint = this.API.endpoints.getWalletAssets(walletId)
-    const headers = await composeAPIHeaders(this.credentials, 'GET', endpoint)
-    const response = await get(endpoint, headers)
+    const response = await this.send('GET', endpoint)
     return response.data
   }
 
   /**
    * Gets deposit address for a wallet by address type
    * @param walletId The wallet ID
-   * @param addressType The type of address (evm, sol)
+   * @param addressType The type of address (evm, btc, sol, tron)
    * @returns Deposit address response
    */
   async getDepositAddress(
@@ -226,8 +237,22 @@ export class APIService {
     addressType: AddressType
   ): Promise<DepositAddressResponse> {
     const endpoint = this.API.endpoints.getDepositAddress(walletId, addressType)
-    const headers = await composeAPIHeaders(this.credentials, 'GET', endpoint)
-    const response = await get(endpoint, headers)
+    const response = await this.send('GET', endpoint)
+    return response.data
+  }
+
+  /**
+   * Gets the network-specific deposit address for an asset
+   * @param walletId The wallet ID
+   * @param assetId The asset ID
+   * @returns Deposit address response
+   */
+  async getDepositAddressByAssetId(
+    walletId: string,
+    assetId: string
+  ): Promise<DepositAddressResponse> {
+    const endpoint = this.API.endpoints.getDepositAddressByAssetId(walletId, assetId)
+    const response = await this.send('GET', endpoint)
     return response.data
   }
 
@@ -238,25 +263,24 @@ export class APIService {
    */
   async rescanTransaction(params: RescanTransactionParams): Promise<void> {
     const endpoint = this.API.endpoints.rescanTransaction()
-    const transformedParams = transformRescanTransactionParams(params)
-    const headers = await composeAPIHeaders(this.credentials, 'POST', endpoint, transformedParams)
-    await post(endpoint, transformedParams, headers)
+    await this.send('POST', endpoint, transformRescanTransactionParams(params))
   }
 
   /**
    * Requests a withdrawal from a wallet
    * @param walletId The wallet ID
    * @param params Withdrawal parameters
+   * @param options Request options such as an idempotency key
    * @returns Withdrawal response with auto_approved status and withdrawal details
    */
   async requestWithdrawal(
     walletId: string,
-    params: RequestWithdrawalParams
+    params: RequestWithdrawalParams,
+    options?: RequestOptions
   ): Promise<RequestWithdrawalResponse> {
     const endpoint = this.API.endpoints.requestWithdrawal(walletId)
-    const transformedParams = transformRequestWithdrawalParams(params)
-    const headers = await composeAPIHeaders(this.credentials, 'POST', endpoint, transformedParams)
-    const response = await post(endpoint, transformedParams, headers)
+    const body = transformRequestWithdrawalParams(params)
+    const response = await this.send('POST', endpoint, body, options)
     return response.data
   }
 
@@ -268,20 +292,18 @@ export class APIService {
    */
   async getWithdrawalStatus(walletId: string, withdrawalId: string): Promise<Withdrawal> {
     const endpoint = this.API.endpoints.getWithdrawalStatus(walletId, withdrawalId)
-    const headers = await composeAPIHeaders(this.credentials, 'GET', endpoint)
-    const response = await get(endpoint, headers)
+    const response = await this.send('GET', endpoint)
     return response.data
   }
 
   /**
    * Gets the webhook public key for a workspace
    * @param workspaceId The workspace ID
-   * @returns Webhook public key response with base64 encoded ed25519 public key
+   * @returns Webhook public key response with hex encoded ed25519 public key
    */
   async getWebhookPublicKey(workspaceId: string): Promise<WebhookPublicKeyResponse> {
     const endpoint = this.API.endpoints.getWebhookPublicKey(workspaceId)
-    const headers = await composeAPIHeaders(this.credentials, 'GET', endpoint)
-    const response = await get(endpoint, headers)
+    const response = await this.send('GET', endpoint)
     return response.data
   }
 
@@ -290,16 +312,14 @@ export class APIService {
     params: CreateSweepTaskParams
   ): Promise<SweepTaskResponse> {
     const endpoint = this.API.endpoints.createSweepTask(workspaceId)
-    const transformedParams = transformCreateSweepTaskParams(params)
-    const headers = await composeAPIHeaders(this.credentials, 'POST', endpoint, transformedParams)
-    const response = await post(endpoint, transformedParams, headers)
+    const response = await this.send('POST', endpoint, transformCreateSweepTaskParams(params))
     return response.data
   }
 }
 
 export class PaymentService {
   private apiKey!: string
-  private API: Record<string, any>
+  private API: APIConfig
 
   constructor(params: PaymentServiceParams) {
     this.apiKey = params.apiKey
@@ -330,8 +350,8 @@ export class PaymentService {
     return response.data
   }
 
-  async getCheckoutPayment(checkoutId: string): Promise<GetCheckoutPaymentResponse> {
-    const endpoint = this.API.endpoints.getCheckoutPayment(checkoutId)
+  async getCheckoutPayment(paymentId: string): Promise<GetCheckoutPaymentResponse> {
+    const endpoint = this.API.endpoints.getCheckoutPayment(paymentId)
     const response = await get(endpoint)
     return response.data
   }
@@ -344,16 +364,58 @@ export class WebhookService {
     this.credentials = credentials
   }
 
-  // Implement verify webhook here
+  /**
+   * Verifies the hex HMAC-SHA256 `X-Webhook-Signature` of a webhook event in constant time.
+   */
   async verifyEvent(event: WebhookEvent, signature: string): Promise<boolean> {
     if (!this.credentials.apiSecret) {
       throw new Error('apiSecret is required to verify webhook events')
     }
-    // Recompute HMAC
-    const computedHMAC = await computeHMACForWebhook(this.credentials.apiSecret, event)
-    const isValid = signature === computedHMAC
-    return isValid
+    return verifyHMACForWebhook(this.credentials.apiSecret, event, signature)
   }
+}
+
+async function request(
+  method: 'GET' | 'POST',
+  endpoint: string,
+  body: string | undefined,
+  headers: Record<string, string>
+): Promise<APIResponse> {
+  const init: RequestInit = {
+    method,
+    headers: {
+      ...(body !== undefined && { 'Content-Type': 'application/json' }),
+      ...headers
+    }
+  }
+  if (body !== undefined) {
+    init.body = body
+  }
+
+  // Only include credentials if we're in cookie mode (no API key in headers)
+  if (!headers['ACCESS-API-KEY']) {
+    init.credentials = 'include'
+  }
+
+  const response = await fetch(endpoint, init)
+  if (response.status === 204) {
+    return { data: undefined, success: true }
+  }
+
+  let data: APIResponse | undefined
+  try {
+    data = await response.json()
+  } catch {
+    data = undefined
+  }
+  if (!response.ok || !data?.success) {
+    throw new APIError(
+      data?.message || response.statusText || 'Failed to fetch data',
+      response.status
+    )
+  }
+
+  return data
 }
 
 // Simplified GET request function
@@ -361,26 +423,7 @@ export async function get(
   endpoint: string,
   headers: Record<string, string> = {}
 ): Promise<APIResponse> {
-  const request: RequestInit = {
-    method: 'GET',
-    headers: {
-      ...headers
-    }
-  }
-
-  // Only include credentials if we're in cookie mode (no API key in headers)
-  if (!headers['ACCESS-API-KEY']) {
-    request.credentials = 'include'
-  }
-
-  const response = await fetch(`${endpoint}`, request)
-  const data = await response.json()
-  if (!response.ok || !data.success) {
-    console.error('Status Code', response.status)
-    throw new Error(data.message || 'Failed to fetch data')
-  }
-
-  return data
+  return request('GET', endpoint, undefined, headers)
 }
 
 // Simplified POST request function
@@ -389,28 +432,7 @@ export async function post(
   body: any,
   headers: Record<string, string> = {}
 ): Promise<APIResponse> {
-  const request: RequestInit = {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...headers
-    },
-    body: JSON.stringify(body)
-  }
-
-  // Only include credentials if we're in cookie mode (no API key in headers)
-  if (!headers['ACCESS-API-KEY']) {
-    request.credentials = 'include'
-  }
-
-  const response = await fetch(`${endpoint}`, request)
-  const data = await response.json()
-  if (!response.ok || !data.success) {
-    console.error('Status Code', response.status)
-    throw new Error(data.message || 'Failed to fetch data')
-  }
-
-  return data
+  return request('POST', endpoint, stringifyJSON(body), headers)
 }
 
 export function transformWalletDetail(data: Record<string, string>): WalletDetail {
@@ -435,7 +457,12 @@ export function transformCreateWalletPayload(data: CreateWalletPayload) {
         destination_type: data.sweepTaskParams?.destinationType
       }
     }),
-    ...(data.sweepTaskId !== undefined && { sweep_task_id: data.sweepTaskId })
+    ...(data.sweepTaskId !== undefined && { sweep_task_id: data.sweepTaskId }),
+    ...(data.networkIds !== undefined && { network_ids: data.networkIds }),
+    ...(data.gasSponsorshipEnabled !== undefined && {
+      gas_sponsorship_enabled: data.gasSponsorshipEnabled
+    }),
+    ...(data.approvalGroupId !== undefined && { approval_group_id: data.approvalGroupId })
   }
 }
 
@@ -454,7 +481,9 @@ export function transformRequestWithdrawalParams(data: RequestWithdrawalParams) 
     amount: data.amount,
     recipient_address: data.recipientAddress,
     ...(data.notes !== undefined && { notes: data.notes }),
-    ...(data.skipBalanceCheck !== undefined && { skip_balance_check: data.skipBalanceCheck })
+    ...(data.skipBalanceCheck !== undefined && { skip_balance_check: data.skipBalanceCheck }),
+    ...(data.categoryIds !== undefined && { category_ids: data.categoryIds }),
+    ...(data.feePriority !== undefined && { fee_priority: data.feePriority })
   }
 }
 
@@ -474,8 +503,4 @@ export function transformCreateSweepTaskParams(data: CreateSweepTaskParams) {
     ...(data.reservePercentageUsd !== undefined && { reserve_percentage_usd: data.reservePercentageUsd }),
     ...(data.enabled !== undefined && { enabled: data.enabled })
   }
-}
-
-;(BigInt.prototype as any).toJSON = function () {
-  return this.toString()
 }

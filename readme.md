@@ -184,6 +184,11 @@ console.log('Solana Address:', sol.address)
 // Get Tron deposit address
 const tron = await sdk.getDepositAddress(wallet.wallet_id, AddressType.Tron)
 console.log('Tron Address:', tron.address)
+
+// For Bitcoin, prefer the asset-specific lookup so Apex selects the
+// correct mainnet or testnet Bech32 address
+const btc = await sdk.getDepositAddressByAssetId(wallet.wallet_id, 'BITCOIN_ASSET_UUID')
+console.log('Bitcoin Address:', btc.address)
 ```
 
 ## Create Withdrawal
@@ -204,6 +209,29 @@ const withdrawal = await sdk.requestWithdrawal('WALLET_ID', {
 console.log('Auto approved:', withdrawal.auto_approved)
 console.log('Withdrawal ID:', withdrawal.withdrawal.id)
 console.log('Status:', withdrawal.withdrawal.status)
+```
+
+### Idempotent withdrawals
+
+Pass an idempotency key to retry a withdrawal safely. The SDK sends it as
+`X-Idempotency-Key`. Apex requires a UUID and replays the first successful
+response for that key for 24 hours.
+
+```typescript
+import { randomUUID } from 'crypto'
+import { FeePriority } from '@fystack/sdk'
+
+const withdrawal = await sdk.requestWithdrawal(
+  'WALLET_ID',
+  {
+    asset: 'BTC',
+    network: 'BTC_MAINNET',
+    amount: '0.001',
+    recipientAddress: 'bc1qRecipientAddress',
+    feePriority: FeePriority.Fast
+  },
+  { idempotencyKey: randomUUID() }
+)
 ```
 
 ### Get withdrawal status
@@ -257,7 +285,17 @@ const tx = await connectedSigner.sendTransaction({
 console.log('Transaction hash:', tx.hash)
 ```
 
+Apex builds EIP-1559 transactions only. `sendTransaction` populates
+`maxFeePerGas` and `maxPriorityFeePerGas` from the provider when they are not
+set; legacy `gasPrice` transactions are rejected. To use a custom API domain,
+pass it as the fifth constructor argument:
+`new EtherSigner(credentials, environment, provider, pollerOptions, 'api.example.com')`.
+
 ### Solana
+
+> Current Apex deployments reject Solana raw transactions and `solana_signMessage`.
+> `SolanaSigner` is kept for deployments that enable the legacy contract; use
+> wallet withdrawals otherwise.
 
 ```typescript
 import { SolanaSigner, Environment } from '@fystack/sdk'
@@ -331,8 +369,22 @@ const apiService = new APIService(
   Environment.Production
 )
 
+// HMAC-SHA256 (X-Webhook-Signature), compared in constant time
 const isValid = await apiService.Webhook.verifyEvent(event, signature)
 ```
+
+For Ed25519 webhooks, verify with the workspace public key. `getWebhookPublicKey`
+returns the hex-encoded key that `verifyEd25519` expects.
+
+```typescript
+import { verifyEd25519 } from '@fystack/sdk'
+
+const { public_key } = await sdk.getWebhookPublicKey('WORKSPACE_ID')
+const isValid = verifyEd25519(public_key, event, signature)
+```
+
+Pass the event exactly as parsed from the request body. The SDK canonicalizes it
+with RFC 8785 (JCS), the same form Apex signs.
 
 ## Payment Processing
 

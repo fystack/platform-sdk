@@ -1,6 +1,6 @@
 import { APIService } from './api'
 import { Environment } from './config'
-import { StatusPoller } from './utils/statusPoller'
+import { StatusPoller, StatusPollerOptions } from './utils/statusPoller'
 import {
   CreateWalletResponse,
   WalletCreationStatusResponse,
@@ -15,10 +15,20 @@ import {
   Withdrawal,
   WebhookPublicKeyResponse,
   CreateSweepTaskParams,
-  SweepTaskResponse
+  SweepTaskResponse,
+  RequestOptions
 } from './types'
-import { validateUUID } from './utils'
-import { AddressType, WalletCreationStatus, WalletType } from './enum'
+import { characterLength, validateUUID } from './utils'
+import { AddressType, FeePriority, WalletCreationStatus, WalletPurpose, WalletType } from './enum'
+
+// Wallet purposes Apex accepts when creating a wallet
+const CREATABLE_WALLET_PURPOSES: string[] = [
+  WalletPurpose.General,
+  WalletPurpose.User,
+  WalletPurpose.Gastank,
+  WalletPurpose.Payment,
+  WalletPurpose.OneTimeUse
+]
 
 export interface SDKOptions {
   credentials: APICredentials
@@ -27,12 +37,15 @@ export interface SDKOptions {
   domain?: string
   /** Enable debug logging. Defaults to false */
   debug?: boolean
+  /** Polling limits used while waiting for wallet creation */
+  pollerOptions?: StatusPollerOptions
 }
 
 export class FystackSDK {
   private apiService: APIService
   private debugEnabled: boolean
   private workspaceId?: string
+  private pollerOptions?: StatusPollerOptions
 
   public automation: AutomationNamespace
 
@@ -42,11 +55,13 @@ export class FystackSDK {
       workspaceId,
       environment = Environment.Production,
       domain,
-      debug = false
+      debug = false,
+      pollerOptions
     } = options
     this.apiService = new APIService(credentials, environment, domain)
     this.debugEnabled = debug
     this.workspaceId = workspaceId
+    this.pollerOptions = pollerOptions
     this.automation = new AutomationNamespace(this)
   }
 
@@ -71,15 +86,42 @@ export class FystackSDK {
       walletType = WalletType.Hyper,
       sweepTaskParams,
       walletPurpose,
-      sweepTaskId
+      sweepTaskId,
+      networkIds,
+      gasSponsorshipEnabled,
+      approvalGroupId
     } = options
+
+    if (!name || name.trim() === '' || characterLength(name) > 100) {
+      throw new Error('Wallet name is required and must not exceed 100 characters')
+    }
+    if (walletType !== WalletType.Hyper && walletType !== WalletType.MPC) {
+      throw new Error(`Invalid wallet type: ${walletType}. Must be standard or mpc`)
+    }
+    if (walletPurpose !== undefined && !CREATABLE_WALLET_PURPOSES.includes(walletPurpose)) {
+      throw new Error(
+        `Invalid wallet purpose: ${walletPurpose}. Must be one of: ${CREATABLE_WALLET_PURPOSES.join(', ')}`
+      )
+    }
+    for (const networkId of networkIds ?? []) {
+      validateUUID(networkId, 'networkIds')
+    }
+    if (sweepTaskId !== undefined) {
+      validateUUID(sweepTaskId, 'sweepTaskId')
+    }
+    if (approvalGroupId !== undefined) {
+      validateUUID(approvalGroupId, 'approvalGroupId')
+    }
 
     const response = await this.apiService.createWallet({
       name,
       walletType,
       walletPurpose,
       sweepTaskParams,
-      sweepTaskId
+      sweepTaskId,
+      networkIds,
+      gasSponsorshipEnabled,
+      approvalGroupId
     })
 
     if (waitForCompletion && response.status === WalletCreationStatus.Pending) {
@@ -118,7 +160,7 @@ export class FystackSDK {
    * @returns Promise with wallet ID and final status
    */
   private async waitForWalletCreation(walletId: string): Promise<CreateWalletResponse> {
-    const poller = new StatusPoller()
+    const poller = new StatusPoller(this.pollerOptions)
 
     // Poll for wallet creation status
     const result = await poller.poll<WalletCreationStatusResponse>(
@@ -160,7 +202,7 @@ export class FystackSDK {
   /**
    * Gets deposit address for a wallet by address type
    * @param walletId The wallet ID
-   * @param addressType The type of address (evm, sol)
+   * @param addressType The type of address (evm, btc, sol, tron)
    * @returns Promise with deposit address information
    */
   async getDepositAddress(
@@ -182,7 +224,25 @@ export class FystackSDK {
   }
 
   /**
-   * Rescans a transaction on a specific network
+   * Gets the network-specific deposit address for an asset. For Bitcoin, Apex
+   * uses the asset network to select mainnet or testnet Bech32 encoding.
+   * @param walletId The wallet ID
+   * @param assetId The asset ID
+   * @returns Promise with deposit address information
+   */
+  async getDepositAddressByAssetId(
+    walletId: string,
+    assetId: string
+  ): Promise<DepositAddressResponse> {
+    validateUUID(walletId, 'walletId')
+    validateUUID(assetId, 'assetId')
+
+    return this.apiService.getDepositAddressByAssetId(walletId, assetId)
+  }
+
+  /**
+   * Rescans a transaction on a specific network. Apex accepts this only with a
+   * system administrator access token (credentials.authToken), not an API key.
    * @param params Transaction hash and network ID
    * @returns Promise that resolves when the rescan is initiated
    */
@@ -200,11 +260,13 @@ export class FystackSDK {
    * Requests a withdrawal from a wallet
    * @param walletId The ID of the wallet to withdraw from
    * @param params Withdrawal parameters including asset, amount, and recipient
+   * @param options Request options such as an idempotency key (UUID)
    * @returns Promise with withdrawal response including auto_approved status and withdrawal details
    */
   async requestWithdrawal(
     walletId: string,
-    params: RequestWithdrawalParams
+    params: RequestWithdrawalParams,
+    options?: RequestOptions
   ): Promise<RequestWithdrawalResponse> {
     validateUUID(walletId, 'walletId')
     if (params.assetId) {
@@ -221,16 +283,29 @@ export class FystackSDK {
       throw new Error('Invalid recipient address provided')
     }
 
-    if (params.recipientAddress.length > 256) {
+    if (characterLength(params.recipientAddress) > 256) {
       throw new Error('Recipient address exceeds maximum length of 256 characters')
     }
 
-    if (params.notes && params.notes.length > 500) {
+    if (params.notes && characterLength(params.notes) > 500) {
       throw new Error('Notes exceed maximum length of 500 characters')
     }
 
+    for (const categoryId of params.categoryIds ?? []) {
+      validateUUID(categoryId, 'categoryIds')
+    }
+
+    if (
+      params.feePriority !== undefined &&
+      !Object.values(FeePriority).includes(params.feePriority)
+    ) {
+      throw new Error(
+        `Invalid fee priority: ${params.feePriority}. Must be one of: ${Object.values(FeePriority).join(', ')}`
+      )
+    }
+
     this.log(`Requesting withdrawal from wallet ${walletId}`)
-    const response = await this.apiService.requestWithdrawal(walletId, params)
+    const response = await this.apiService.requestWithdrawal(walletId, params, options)
     this.log(`Withdrawal request completed, auto_approved: ${response.auto_approved}`)
 
     return response
@@ -254,7 +329,7 @@ export class FystackSDK {
   /**
    * Gets the webhook public key for a workspace
    * @param workspaceId The workspace ID
-   * @returns Promise with webhook public key (base64 encoded ed25519 public key)
+   * @returns Promise with webhook public key (hex encoded ed25519 public key, as verifyEd25519 expects)
    */
   async getWebhookPublicKey(workspaceId: string): Promise<WebhookPublicKeyResponse> {
     validateUUID(workspaceId, 'workspaceId')
