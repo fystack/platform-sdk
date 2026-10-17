@@ -426,3 +426,7 @@ const paymentService = new PaymentService({
   domain: 'api.your-company.com'
 })
 ```
+
+## License
+
+[MIT](LICENSE)
