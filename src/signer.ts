@@ -1,6 +1,7 @@
 import {
   AbstractSigner,
   TypedDataDomain,
+  TypedDataEncoder,
   TypedDataField,
   resolveProperties,
   resolveAddress,
@@ -398,11 +399,8 @@ export class EtherSigner extends AbstractSigner {
     }
 
     const chainId = await this.getChainId()
-    const typedData = stringifyJSON({
-      domain,
-      types,
-      message: value
-    })
+    // Standard eth_signTypedData_v4 payload: adds primaryType and EIP712Domain.
+    const typedData = stringifyJSON(TypedDataEncoder.getPayload(domain, types, value))
 
     const response = await this.APIService.requestSign(
       this.walletDetail.WalletID,
